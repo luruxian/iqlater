@@ -1,0 +1,12 @@
+# 本机运行 axonhub 的配置。复制为仓库根目录的 config.yml（已被 .gitignore 忽略），
+# 把 CHANGE_ME 换成 iqlater 数据库用户的密码，然后在仓库根目录运行 ./axonhub。
+server:
+  port: 8090
+  name: "iqlater"
+
+db:
+  dialect: "postgres"
+  dsn: "postgres://iqlater:CHANGE_ME@localhost:5432/iqlater?sslmode=disable"
+
+log:
+  level: "info"

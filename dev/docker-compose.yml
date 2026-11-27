@@ -1,0 +1,38 @@
+# 本地开发：只有 magpie 跑在 Docker 里，axonhub 与 PostgreSQL 在宿主机上运行。
+# 启动：docker compose -f dev/docker-compose.yml up -d
+# Web UI 地址（含 key）：docker compose -f dev/docker-compose.yml logs magpie | grep -o 'http://127.0.0.1:3430/[^ ]*'
+name: iqlater-dev
+
+services:
+  magpie:
+    image: ghcr.io/yetone/magpie:stable
+    restart: unless-stopped
+    command: [web, --addr, "0.0.0.0:3430", --no-open]
+    ports:
+      - "127.0.0.1:3425:3425"
+      - "127.0.0.1:3430:3430"
+    environment:
+      MAGPIE_WEB_KEY: ${MAGPIE_WEB_KEY:?set MAGPIE_WEB_KEY in dev/.env}
+      MAGPIE_NAME: iqlater-dev
+      # Docker Desktop 把经端口映射进来的请求的来源地址改写为本网络的网关
+      MAGPIE_ALLOW_IPS: 172.29.0.1
+      TZ: Asia/Shanghai
+    volumes:
+      - magpie_config:/config
+    healthcheck:
+      test: ["CMD", "/magpie", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks: [magpie]
+
+networks:
+  magpie:
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24
+          gateway: 172.29.0.1
+
+volumes:
+  magpie_config:
