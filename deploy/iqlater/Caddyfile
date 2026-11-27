@@ -1,0 +1,6 @@
+{$DOMAIN} {
+	reverse_proxy axonhub:8090 {
+		# 流式响应（SSE）逐块转发
+		flush_interval -1
+	}
+}
