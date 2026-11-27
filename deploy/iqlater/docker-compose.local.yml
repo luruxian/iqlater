@@ -1,0 +1,9 @@
+# 在本机用本地构建的镜像验证部署编排，不启动 Caddy。
+#   docker build -t iqlater:local ../..
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d axonhub
+# 先停掉 dev/ 的 magpie 和本机 axonhub，避免 3430、8090 端口冲突。
+services:
+  axonhub:
+    image: iqlater:local
+    ports:
+      - "127.0.0.1:8090:8090"

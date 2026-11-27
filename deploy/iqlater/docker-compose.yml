@@ -1,0 +1,114 @@
+# iqlater 部署：Caddy（HTTPS）→ axonhub（统一入口）→ magpie（上游渠道）；PostgreSQL 仅 axonhub 可达。
+# 用法（在本目录）：cp .env.example .env 并填写，然后 docker compose up -d
+name: iqlater
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      axonhub:
+        condition: service_healthy
+    stop_grace_period: 35s
+    networks: [edge]
+
+  axonhub:
+    image: ${IQLATER_IMAGE:-ghcr.io/luruxian/iqlater}:${IQLATER_VERSION:?set IQLATER_VERSION in .env}
+    restart: unless-stopped
+    environment:
+      AXONHUB_SERVER_NAME: iqlater
+      AXONHUB_SERVER_TRUSTED_PROXIES: '["172.28.0.0/24"]'
+      AXONHUB_DB_DIALECT: postgres
+      AXONHUB_DB_DSN: postgres://iqlater:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/iqlater?sslmode=disable
+      TZ: Asia/Shanghai
+    user: "65532:65532"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      magpie:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # axonhub 的进程停止超时为 30 秒
+    stop_grace_period: 35s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    networks: [edge, backend]
+
+  magpie:
+    image: ghcr.io/yetone/magpie:stable
+    restart: unless-stopped
+    command: [web, --addr, "0.0.0.0:3430", --no-open]
+    ports:
+      # Web UI 只给 SSH 隧道用：ssh -L 3430:127.0.0.1:3430 <服务器>
+      - "127.0.0.1:3430:3430"
+    environment:
+      MAGPIE_WEB_KEY: ${MAGPIE_WEB_KEY:?set MAGPIE_WEB_KEY in .env}
+      MAGPIE_NAME: iqlater
+      # axonhub 与 SSH 隧道（经网关 172.28.0.1 进入）都在 edge 子网内
+      MAGPIE_ALLOW_IPS: 172.28.0.0/24
+      MAGPIE_DRAIN: "300"
+      TZ: Asia/Shanghai
+    volumes:
+      - magpie_config:/config
+    healthcheck:
+      test: ["CMD", "/magpie", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 310s
+    networks: [edge]
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: iqlater
+      POSTGRES_USER: iqlater
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iqlater -d iqlater"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    stop_grace_period: 60s
+    networks: [backend]
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+  backend:
+    internal: true
+
+volumes:
+  postgres_data:
+  magpie_config:
+  caddy_data:
+  caddy_config:
