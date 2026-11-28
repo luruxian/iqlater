@@ -2,6 +2,7 @@
 	test-backend-all \
 	e2e-test e2e-backend-start e2e-backend-stop e2e-backend-status e2e-backend-restart e2e-backend-clean \
 	migration-test migration-test-all migration-test-all-dbs \
+	migrate-diff migrate-check \
 	sync-faq sync-models filter-logs \
 	lint lint-privacy \
 	generate-schema
@@ -146,6 +147,18 @@ migration-test-all-dbs:
 	@if [ -z "$(TAG)" ]; then echo "Error: TAG is required. Usage: make migration-test-all-dbs TAG=v0.1.0"; exit 1; fi
 	@echo "Running migration tests across all DBs from $(TAG)..."
 	@./scripts/migration/test-migration-all-dbs.sh $(TAG)
+
+# --- Versioned Migrations (PostgreSQL, Atlas) ---
+
+# Generate a new versioned migration from the Ent schema
+# Usage: make migrate-diff name=<name> [MIGRATE_DEV_URL=<empty postgres DSN with search_path=public>]
+migrate-diff:
+	@if [ -z "$(name)" ]; then echo "Error: name is required. Usage: make migrate-diff name=<name>"; exit 1; fi
+	@./scripts/migration/versioned.sh diff $(name)
+
+# Check that the migration directory matches the Ent schema and atlas.sum is valid
+migrate-check:
+	@./scripts/migration/versioned.sh check
 
 # --- Data Syncing ---
 
