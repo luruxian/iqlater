@@ -12,6 +12,7 @@ type Config struct {
 	ConnMaxIdleTime      time.Duration `conf:"conn_max_idle_time" yaml:"conn_max_idle_time" json:"conn_max_idle_time"`
 	DisableSQLiteAutoWAL bool          `conf:"disable_sqlite_auto_wal" yaml:"disable_sqlite_auto_wal" json:"disable_sqlite_auto_wal"`
 	DisableAutoMigration bool          `conf:"disable_auto_migration" yaml:"disable_auto_migration" json:"disable_auto_migration"`
+	MigrationMode        string        `conf:"migration_mode" yaml:"migration_mode" json:"migration_mode"`
 
 	ReadReplica ReadReplicaConfig `conf:"read_replica" yaml:"read_replica" json:"read_replica"`
 }

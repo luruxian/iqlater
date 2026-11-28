@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect"
-	"entgo.io/ent/dialect/sql/schema"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -16,9 +15,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 
 	"github.com/looplj/axonhub/internal/ent"
-	"github.com/looplj/axonhub/internal/ent/migrate"
 	"github.com/looplj/axonhub/internal/ent/migrate/datamigrate"
-	"github.com/looplj/axonhub/internal/ent/migrate/schemahook"
 	_ "github.com/looplj/axonhub/internal/ent/runtime"
 	_ "github.com/looplj/axonhub/internal/pkg/sqlite"
 )
@@ -63,7 +60,12 @@ func NewEntClient(cfg Config) *ent.Client {
 	opts = append(opts, ent.Driver(drv))
 	client := ent.NewClient(opts...)
 
-	if !cfg.DisableAutoMigration {
+	runSchema, runData, err := migrationSteps(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	if runSchema {
 		// Purge rows for provider types removed from the enum before the
 		// schema DDL runs: on MySQL/TiDB the enum removal rewrites the
 		// column and a surviving 'wafer' row would abort the ALTER (strict
@@ -72,19 +74,12 @@ func NewEntClient(cfg Config) *ent.Client {
 			panic(err)
 		}
 
-		err = client.Schema.Create(
-			context.Background(),
-			migrate.WithGlobalUniqueID(false),
-			migrate.WithForeignKeys(false),
-			migrate.WithDropIndex(true),
-			migrate.WithDropColumn(true),
-			schema.WithHooks(schemahook.V0_3_0),
-			filterEquivalentDefaultChanges(),
-		)
-		if err != nil {
+		if err := client.Schema.Create(context.Background(), SchemaMigrateOptions()...); err != nil {
 			panic(err)
 		}
+	}
 
+	if runData {
 		migrator := datamigrate.NewMigrator(client)
 		if err := migrator.Run(context.Background()); err != nil {
 			panic(err)
