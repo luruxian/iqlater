@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/samber/lo"
+
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/authz/identity"
 	"github.com/looplj/axonhub/internal/contexts"
@@ -247,6 +249,37 @@ func (v *PermissionValidator) checkUserHierarchy(ctx context.Context, currentUse
 	}
 
 	return nil
+}
+
+// projectOwnerManagesAccount reports whether a project owner may change the
+// target's account status. The account is global, so this holds only when every
+// project the target belongs to is owned by the caller and the target has no
+// system-level privileges; otherwise another customer would be affected.
+func (v *PermissionValidator) projectOwnerManagesAccount(caller, target *ent.User) bool {
+	if caller == nil || target == nil || caller.IsOwner || caller.ID == target.ID {
+		return false
+	}
+	if target.IsOwner || len(target.Scopes) > 0 || len(target.Edges.ProjectUsers) == 0 {
+		return false
+	}
+	for _, r := range target.Edges.Roles {
+		if r.IsSystemRole() {
+			return false
+		}
+	}
+	for _, membership := range target.Edges.ProjectUsers {
+		if membership.IsOwner {
+			return false
+		}
+		callerOwns := lo.ContainsBy(caller.Edges.ProjectUsers, func(m *ent.UserProject) bool {
+			return m.ProjectID == membership.ProjectID && m.IsOwner
+		})
+		if !callerOwns {
+			return false
+		}
+	}
+
+	return true
 }
 
 // canManageUserAccount checks the permissions acquired or interrupted by changes

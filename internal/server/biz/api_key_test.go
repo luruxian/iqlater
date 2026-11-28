@@ -1859,7 +1859,7 @@ func TestValidateAllowedIPs(t *testing.T) {
 	}
 }
 
-func TestAPIKeyService_UpdateAPIKeyProfiles_PersonalKeyGuard(t *testing.T) {
+func TestAPIKeyService_UpdateAPIKeyProfiles_LimitsGuard(t *testing.T) {
 	apiKeyService, client := setupTestAPIKeyService(t, xcache.Config{Mode: xcache.ModeMemory})
 	defer apiKeyService.Stop()
 	defer client.Close()
@@ -1886,6 +1886,7 @@ func TestAPIKeyService_UpdateAPIKeyProfiles_PersonalKeyGuard(t *testing.T) {
 
 	creator := newUser("Creator", false)
 	otherUser := newUser("Other", false)
+	projectOwner := newUser("ProjectOwner", false)
 	ownerUser := newUser("Owner", true)
 
 	testProject, err := client.Project.Create().
@@ -1893,6 +1894,13 @@ func TestAPIKeyService_UpdateAPIKeyProfiles_PersonalKeyGuard(t *testing.T) {
 		SetDescription("test").
 		SetStatus(project.StatusActive).
 		Save(ctx)
+	require.NoError(t, err)
+
+	_, err = client.UserProject.Create().SetUserID(creator.ID).SetProjectID(testProject.ID).
+		SetScopes([]string{"read_api_keys", "write_api_keys"}).Save(ctx)
+	require.NoError(t, err)
+	_, err = client.UserProject.Create().SetUserID(projectOwner.ID).SetProjectID(testProject.ID).
+		SetIsOwner(true).Save(ctx)
 	require.NoError(t, err)
 
 	apiKey, err := client.APIKey.Create().
@@ -1914,13 +1922,16 @@ func TestAPIKeyService_UpdateAPIKeyProfiles_PersonalKeyGuard(t *testing.T) {
 		},
 	}
 
-	// A regular user cannot modify someone else's personal key.
+	// A regular user cannot modify someone else's key limits.
 	_, err = apiKeyService.UpdateAPIKeyProfiles(contexts.WithUser(ctx, otherUser), apiKey.ID, profiles)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "personal API key can only be modified by its creator or a system owner")
+	require.ErrorContains(t, err, "only project owners can change API key limits")
 
-	// The creator can.
+	// Nor can the employee who created the key: limits are set by the project owner.
 	_, err = apiKeyService.UpdateAPIKeyProfiles(contexts.WithUser(ctx, creator), apiKey.ID, profiles)
+	require.ErrorContains(t, err, "only project owners can change API key limits")
+
+	// The project owner can.
+	_, err = apiKeyService.UpdateAPIKeyProfiles(contexts.WithUser(ctx, projectOwner), apiKey.ID, profiles)
 	require.NoError(t, err)
 
 	// A system owner can too.

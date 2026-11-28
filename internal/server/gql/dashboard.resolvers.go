@@ -886,8 +886,8 @@ func (r *queryResolver) UsageStatsByUser(ctx context.Context, timeWindow *string
 
 	var results []userUsageStats
 
+	// Playground usage has no API key, so it is included through usage_logs.user_id.
 	query := r.client.UsageLog.Query().
-		Where(usagelog.APIKeyIDNotNil()).
 		Where(usagelog.ProjectIDEQ(projectID))
 
 	if applyGTE {
@@ -901,16 +901,17 @@ func (r *queryResolver) UsageStatsByUser(ctx context.Context, timeWindow *string
 		apiKeyTable := sql.Table(apikey.Table)
 		userTable := sql.Table("users")
 
-		s.Join(apiKeyTable).On(
+		// usage_logs.user_id records the member; older rows fall back to the key's creator.
+		// Usage of since-deleted keys still counts toward the member.
+		s.LeftJoin(apiKeyTable).On(
 			s.C(usagelog.FieldAPIKeyID),
 			apiKeyTable.C(apikey.FieldID),
 		)
-		s.Join(userTable).On(
-			apiKeyTable.C(apikey.FieldUserID),
+		s.Join(userTable).OnP(sql.ExprP(fmt.Sprintf("%s = COALESCE(%s, %s)",
 			userTable.C("id"),
-		)
-
-		s.Where(sql.EQ(apiKeyTable.C(apikey.FieldDeletedAt), 0))
+			s.C(usagelog.FieldUserID),
+			apiKeyTable.C(apikey.FieldUserID),
+		)))
 
 		s.Select(
 			sql.As(userTable.C("id"), "user_id"),

@@ -36,7 +36,7 @@ function CopyBaseUrlButton({ baseUrl }: { baseUrl: string }) {
 
 export function ApiKeysViewDialog() {
   const { t } = useTranslation();
-  const { isDialogOpen, closeDialog, selectedApiKey } = useApiKeysContext();
+  const { isDialogOpen, closeDialog, selectedApiKey, oneTimeKeyNotice } = useApiKeysContext();
   const [isVisible, setIsVisible] = useState(false);
   const [preRenderedCode, setPreRenderedCode] = useState<Record<string, { light: string; dark: string }>>({});
   const [piPreRendered, setPiPreRendered] = useState<{ source: string; light: string; dark: string }>();
@@ -371,6 +371,13 @@ print(response.text)`,
           <AlertTriangle className='h-4 w-4 text-orange-600 dark:text-orange-400' />
           <AlertDescription className='text-orange-800 dark:text-orange-200'>{t('apikeys.dialogs.view.warning')}</AlertDescription>
         </Alert>
+
+        {oneTimeKeyNotice && (
+          <Alert variant='destructive' className='shrink-0'>
+            <AlertTriangle className='h-4 w-4' />
+            <AlertDescription>{t('apikeys.dialogs.view.oneTimeWarning')}</AlertDescription>
+          </Alert>
+        )}
 
         <div className='shrink-0 space-y-4'>
           <div>

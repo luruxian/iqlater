@@ -384,6 +384,13 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, input ent.CreateAPIKey
 			return xerrors.DuplicateNameError("API Key", input.Name)
 		}
 
+		if apiKeyType == apikey.TypePersonal {
+			created, err = applyNewPersonalKeyTemplate(ctx, client, created)
+			if err != nil {
+				return err
+			}
+		}
+
 		apiKey = created
 
 		return nil
@@ -512,12 +519,8 @@ func (s *APIKeyService) UpdateAPIKey(ctx context.Context, id int, input ent.Upda
 		}
 
 		if apiKey.Type == apikey.TypePersonal {
-			user, ok := contexts.GetUser(ctx)
-			if !ok {
-				return fmt.Errorf("user not found in context")
-			}
-			if apiKey.UserID != user.ID && !user.IsOwner {
-				return fmt.Errorf("personal API key can only be modified by its creator or a system owner")
+			if err := requirePersonalAPIKeyManager(ctx, client, apiKey); err != nil {
+				return err
 			}
 		}
 
@@ -615,12 +618,8 @@ func (s *APIKeyService) UpdateAPIKeyStatus(ctx context.Context, id int, status a
 	}
 
 	if existing.Type == apikey.TypePersonal {
-		user, ok := contexts.GetUser(ctx)
-		if !ok {
-			return nil, fmt.Errorf("user not found in context")
-		}
-		if existing.UserID != user.ID && !user.IsOwner {
-			return nil, fmt.Errorf("personal API key can only be modified by its creator or a system owner")
+		if err := requirePersonalAPIKeyManager(ctx, client, existing); err != nil {
+			return nil, err
 		}
 	}
 
@@ -640,6 +639,7 @@ func (s *APIKeyService) UpdateAPIKeyStatus(ctx context.Context, id int, status a
 func (s *APIKeyService) updatePersonalAPIKeyStatusByUser(
 	ctx context.Context,
 	userID int,
+	projectID *int,
 	fromStatuses []apikey.Status,
 	toStatus apikey.Status,
 	action string,
@@ -653,6 +653,9 @@ func (s *APIKeyService) updatePersonalAPIKeyStatusByUser(
 			apikey.TypeEQ(apikey.TypePersonal),
 			apikey.StatusIn(fromStatuses...),
 		)
+		if projectID != nil {
+			predicate = apikey.And(predicate, apikey.ProjectIDEQ(*projectID))
+		}
 		apiKeys, err := client.APIKey.Query().Where(predicate).All(hostCtx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query user personal API keys: %w", err)
@@ -688,6 +691,7 @@ func (s *APIKeyService) archivePersonalAPIKeysByUser(ctx context.Context, userID
 	return s.updatePersonalAPIKeyStatusByUser(
 		ctx,
 		userID,
+		nil,
 		[]apikey.Status{apikey.StatusEnabled, apikey.StatusDisabled},
 		apikey.StatusArchived,
 		"archive",
@@ -700,6 +704,20 @@ func (s *APIKeyService) disablePersonalAPIKeysByUser(ctx context.Context, userID
 	return s.updatePersonalAPIKeyStatusByUser(
 		ctx,
 		userID,
+		nil,
+		[]apikey.Status{apikey.StatusEnabled},
+		apikey.StatusDisabled,
+		"disable",
+	)
+}
+
+// disablePersonalAPIKeysByUserInProject disables the enabled personal API keys a
+// user created in one project, used when the user leaves that project.
+func (s *APIKeyService) disablePersonalAPIKeysByUserInProject(ctx context.Context, userID, projectID int) error {
+	return s.updatePersonalAPIKeyStatusByUser(
+		ctx,
+		userID,
+		&projectID,
 		[]apikey.Status{apikey.StatusEnabled},
 		apikey.StatusDisabled,
 		"disable",
@@ -719,14 +737,9 @@ func (s *APIKeyService) UpdateAPIKeyProfiles(ctx context.Context, id int, profil
 		return nil, fmt.Errorf("noauth type API key profiles cannot be updated")
 	}
 
-	if existing.Type == apikey.TypePersonal {
-		user, ok := contexts.GetUser(ctx)
-		if !ok {
-			return nil, fmt.Errorf("user not found in context")
-		}
-		if existing.UserID != user.ID && !user.IsOwner {
-			return nil, fmt.Errorf("personal API key can only be modified by its creator or a system owner")
-		}
+	// Profiles carry quota, model and channel limits, which only project owners set.
+	if err := requireAPIKeyLimitsManager(ctx, client, existing.ProjectID); err != nil {
+		return nil, err
 	}
 
 	// Validate that profile names are unique (case-insensitive)
@@ -1136,7 +1149,7 @@ func (s *APIKeyService) bulkUpdateAPIKeyStatus(ctx context.Context, ids []int, s
 		return fmt.Errorf("noauth type API key cannot be bulk %sd", action)
 	}
 
-	// Personal API keys can only be managed by their creator or a system owner
+	// Personal API keys can only be managed by their creator, a project owner or a system owner
 	personalKeys, err := client.APIKey.Query().
 		Where(apikey.IDIn(ids...), apikey.TypeEQ(apikey.TypePersonal)).
 		All(ctx)
@@ -1144,15 +1157,9 @@ func (s *APIKeyService) bulkUpdateAPIKeyStatus(ctx context.Context, ids []int, s
 		return fmt.Errorf("failed to query personal API keys: %w", err)
 	}
 
-	if len(personalKeys) > 0 {
-		user, ok := contexts.GetUser(ctx)
-		if !ok {
-			return fmt.Errorf("user not found in context")
-		}
-		for _, k := range personalKeys {
-			if k.UserID != user.ID && !user.IsOwner {
-				return fmt.Errorf("personal API key %q can only be %sd by its creator or a system owner", k.Name, action)
-			}
+	for _, k := range personalKeys {
+		if err := requirePersonalAPIKeyManager(ctx, client, k); err != nil {
+			return fmt.Errorf("personal API key %q cannot be %sd: %w", k.Name, action, err)
 		}
 	}
 

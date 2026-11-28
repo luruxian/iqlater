@@ -83,13 +83,14 @@ var schemaGraph = func() *sqlgraph.Schema {
 		},
 		Type: "APIKeyProfileTemplate",
 		Fields: map[string]*sqlgraph.FieldSpec{
-			apikeyprofiletemplate.FieldCreatedAt:   {Type: field.TypeTime, Column: apikeyprofiletemplate.FieldCreatedAt},
-			apikeyprofiletemplate.FieldUpdatedAt:   {Type: field.TypeTime, Column: apikeyprofiletemplate.FieldUpdatedAt},
-			apikeyprofiletemplate.FieldDeletedAt:   {Type: field.TypeInt, Column: apikeyprofiletemplate.FieldDeletedAt},
-			apikeyprofiletemplate.FieldName:        {Type: field.TypeString, Column: apikeyprofiletemplate.FieldName},
-			apikeyprofiletemplate.FieldDescription: {Type: field.TypeString, Column: apikeyprofiletemplate.FieldDescription},
-			apikeyprofiletemplate.FieldProjectID:   {Type: field.TypeInt, Column: apikeyprofiletemplate.FieldProjectID},
-			apikeyprofiletemplate.FieldProfile:     {Type: field.TypeJSON, Column: apikeyprofiletemplate.FieldProfile},
+			apikeyprofiletemplate.FieldCreatedAt:              {Type: field.TypeTime, Column: apikeyprofiletemplate.FieldCreatedAt},
+			apikeyprofiletemplate.FieldUpdatedAt:              {Type: field.TypeTime, Column: apikeyprofiletemplate.FieldUpdatedAt},
+			apikeyprofiletemplate.FieldDeletedAt:              {Type: field.TypeInt, Column: apikeyprofiletemplate.FieldDeletedAt},
+			apikeyprofiletemplate.FieldName:                   {Type: field.TypeString, Column: apikeyprofiletemplate.FieldName},
+			apikeyprofiletemplate.FieldDescription:            {Type: field.TypeString, Column: apikeyprofiletemplate.FieldDescription},
+			apikeyprofiletemplate.FieldProjectID:              {Type: field.TypeInt, Column: apikeyprofiletemplate.FieldProjectID},
+			apikeyprofiletemplate.FieldProfile:                {Type: field.TypeJSON, Column: apikeyprofiletemplate.FieldProfile},
+			apikeyprofiletemplate.FieldApplyToNewPersonalKeys: {Type: field.TypeBool, Column: apikeyprofiletemplate.FieldApplyToNewPersonalKeys},
 		},
 	}
 	graph.Nodes[2] = &sqlgraph.Node{
@@ -728,6 +729,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			usagelog.FieldUpdatedAt:                          {Type: field.TypeTime, Column: usagelog.FieldUpdatedAt},
 			usagelog.FieldRequestID:                          {Type: field.TypeInt, Column: usagelog.FieldRequestID},
 			usagelog.FieldAPIKeyID:                           {Type: field.TypeInt, Column: usagelog.FieldAPIKeyID},
+			usagelog.FieldUserID:                             {Type: field.TypeInt, Column: usagelog.FieldUserID},
 			usagelog.FieldProjectID:                          {Type: field.TypeInt, Column: usagelog.FieldProjectID},
 			usagelog.FieldChannelID:                          {Type: field.TypeInt, Column: usagelog.FieldChannelID},
 			usagelog.FieldModelID:                            {Type: field.TypeString, Column: usagelog.FieldModelID},
@@ -1875,6 +1877,11 @@ func (f *APIKeyProfileTemplateFilter) WhereProjectID(p entql.IntP) {
 // WhereProfile applies the entql json.RawMessage predicate on the profile field.
 func (f *APIKeyProfileTemplateFilter) WhereProfile(p entql.BytesP) {
 	f.Where(p.Field(apikeyprofiletemplate.FieldProfile))
+}
+
+// WhereApplyToNewPersonalKeys applies the entql bool predicate on the apply_to_new_personal_keys field.
+func (f *APIKeyProfileTemplateFilter) WhereApplyToNewPersonalKeys(p entql.BoolP) {
+	f.Where(p.Field(apikeyprofiletemplate.FieldApplyToNewPersonalKeys))
 }
 
 // WhereHasProject applies a predicate to check if query has an edge project.
@@ -5107,6 +5114,11 @@ func (f *UsageLogFilter) WhereRequestID(p entql.IntP) {
 // WhereAPIKeyID applies the entql int predicate on the api_key_id field.
 func (f *UsageLogFilter) WhereAPIKeyID(p entql.IntP) {
 	f.Where(p.Field(usagelog.FieldAPIKeyID))
+}
+
+// WhereUserID applies the entql int predicate on the user_id field.
+func (f *UsageLogFilter) WhereUserID(p entql.IntP) {
+	f.Where(p.Field(usagelog.FieldUserID))
 }
 
 // WhereProjectID applies the entql int predicate on the project_id field.

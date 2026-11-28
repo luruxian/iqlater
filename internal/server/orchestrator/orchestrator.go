@@ -11,6 +11,7 @@ import (
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/metrics"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xcontext"
 	"github.com/looplj/axonhub/internal/server/biz"
 	"github.com/looplj/axonhub/internal/server/events"
@@ -170,6 +171,14 @@ func (processor *ChatCompletionOrchestrator) WithChannelSelector(selector Candid
 func (processor *ChatCompletionOrchestrator) WithAllowedChannels(allowedChannelIDs []int) *ChatCompletionOrchestrator {
 	c := *processor
 	c.channelSelector = WithSelectedChannelsSelector(processor.channelSelector, allowedChannelIDs)
+
+	return &c
+}
+
+// WithChannelTags limits candidates to channels whose tags match.
+func (processor *ChatCompletionOrchestrator) WithChannelTags(tags []string, matchMode objects.ChannelTagsMatchMode) *ChatCompletionOrchestrator {
+	c := *processor
+	c.channelSelector = WithChannelTagsFilterSelector(processor.channelSelector, tags, matchMode)
 
 	return &c
 }

@@ -293,6 +293,13 @@ type CountChannelsByTypeInput struct {
 	StatusIn []channel.Status `json:"statusIn,omitempty"`
 }
 
+type CreatePersonalAPIKeyForUserInput struct {
+	ProjectID objects.GUID `json:"projectID"`
+	// The member who will own the key.
+	UserID objects.GUID `json:"userID"`
+	Name   string       `json:"name"`
+}
+
 type DailyRequestStats struct {
 	Date   string  `json:"date"`
 	Count  int     `json:"count"`
@@ -370,6 +377,12 @@ type InitializeSystemPayload struct {
 	Message string    `json:"message"`
 	User    *ent.User `json:"user,omitempty"`
 	Token   *string   `json:"token,omitempty"`
+}
+
+type IssuedAPIKeyPayload struct {
+	APIKey *ent.APIKey `json:"apiKey"`
+	// The plaintext key, returned only once so the project owner can hand it over.
+	Key string `json:"key"`
 }
 
 type LoadAPIKeyProfileTemplateInput struct {

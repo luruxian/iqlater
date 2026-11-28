@@ -25,18 +25,21 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation();
   const { openDialog } = useApiKeysContext();
-  const { apiKeyPermissions } = usePermissions();
+  const { apiKeyPermissions, isProjectOwner } = usePermissions();
   const currentUser = useAuthStore((state) => state.auth.user);
   const apiKey = row.original;
   const [open, setOpen] = React.useState(false);
   const [chartOpen, setChartOpen] = React.useState(false);
 
-  // Personal API keys can only be modified by their creator or a system
-  // owner; hide mutating actions on other users' personal keys for anyone
-  // else instead of letting them fail.
+  // Other users' personal keys may be edited and enabled/disabled/archived
+  // only by their creator, a system owner or a project owner; rotation stays
+  // creator-only (system owners keep their previous access). Hide what the
+  // backend would reject instead of letting it fail.
   const isOthersPersonalKey =
     apiKey.type === 'personal' && !currentUser?.isOwner && apiKey.user?.id != null && apiKey.user.id !== currentUser?.id;
-  const canMutate = apiKeyPermissions.canWrite && !isOthersPersonalKey;
+  const canMutate = apiKeyPermissions.canWrite && (!isOthersPersonalKey || isProjectOwner);
+  const canRotate = canMutate && !isOthersPersonalKey;
+  const canEditProfiles = canMutate && apiKeyPermissions.canManageLimits;
 
   // Don't show menu if user has no permissions
   if (!apiKeyPermissions.canRead && !apiKeyPermissions.canWrite) {
@@ -98,7 +101,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                 <IconEdit className='mr-2 h-4 w-4' />
                 {t('common.actions.edit')}
               </DropdownMenuItem>
-              {apiKey.type !== 'service_account' && (
+              {canEditProfiles && apiKey.type !== 'service_account' && (
                 <DropdownMenuItem onClick={() => handleProfiles(apiKey)}>
                   <IconSettings className='mr-2 h-4 w-4' />
                   {t('apikeys.actions.profiles')}
@@ -129,7 +132,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                 {apiKey.status === 'archived' ? <IconCheck className='mr-2 h-4 w-4' /> : <IconArchive className='mr-2 h-4 w-4' />}
                 {apiKey.status === 'archived' ? t('common.buttons.restore') : t('common.buttons.archive')}
               </DropdownMenuItem>
-              {apiKey.key && apiKey.type !== 'noauth' && (
+              {canRotate && apiKey.key && apiKey.type !== 'noauth' && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => handleRotate(apiKey)}>

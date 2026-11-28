@@ -70,6 +70,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Default: ""},
 		{Name: "profile", Type: field.TypeJSON, Nullable: true},
+		{Name: "apply_to_new_personal_keys", Type: field.TypeBool, Default: false},
 		{Name: "project_id", Type: field.TypeInt},
 	}
 	// APIKeyProfileTemplatesTable holds the schema information for the "api_key_profile_templates" table.
@@ -80,7 +81,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_key_profile_templates_projects_api_key_profile_templates",
-				Columns:    []*schema.Column{APIKeyProfileTemplatesColumns[7]},
+				Columns:    []*schema.Column{APIKeyProfileTemplatesColumns[8]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -89,7 +90,7 @@ var (
 			{
 				Name:    "api_key_profile_templates_by_project_name",
 				Unique:  true,
-				Columns: []*schema.Column{APIKeyProfileTemplatesColumns[7], APIKeyProfileTemplatesColumns[4], APIKeyProfileTemplatesColumns[3]},
+				Columns: []*schema.Column{APIKeyProfileTemplatesColumns[8], APIKeyProfileTemplatesColumns[4], APIKeyProfileTemplatesColumns[3]},
 			},
 		},
 	}
@@ -1098,6 +1099,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "updated_at", Type: field.TypeTime, Default: schema.Expr("CURRENT_TIMESTAMP")},
 		{Name: "api_key_id", Type: field.TypeInt, Nullable: true},
+		{Name: "user_id", Type: field.TypeInt, Nullable: true},
 		{Name: "model_id", Type: field.TypeString},
 		{Name: "prompt_tokens", Type: field.TypeInt64, Default: 0},
 		{Name: "completion_tokens", Type: field.TypeInt64, Default: 0},
@@ -1128,19 +1130,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_channels_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[22]},
+				Columns:    []*schema.Column{UsageLogsColumns[23]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_projects_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[23]},
+				Columns:    []*schema.Column{UsageLogsColumns[24]},
 				RefColumns: []*schema.Column{ProjectsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_requests_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[24]},
+				Columns:    []*schema.Column{UsageLogsColumns[25]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1149,7 +1151,7 @@ var (
 			{
 				Name:    "usage_logs_by_request_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[24]},
+				Columns: []*schema.Column{UsageLogsColumns[25]},
 			},
 			{
 				Name:    "usage_logs_by_created_at",
@@ -1159,22 +1161,27 @@ var (
 			{
 				Name:    "usage_logs_by_model_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[4], UsageLogsColumns[1]},
+				Columns: []*schema.Column{UsageLogsColumns[5], UsageLogsColumns[1]},
 			},
 			{
 				Name:    "usage_logs_by_project_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[23], UsageLogsColumns[1]},
+				Columns: []*schema.Column{UsageLogsColumns[24], UsageLogsColumns[1]},
 			},
 			{
 				Name:    "usage_logs_by_channel_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[22], UsageLogsColumns[1]},
+				Columns: []*schema.Column{UsageLogsColumns[23], UsageLogsColumns[1]},
 			},
 			{
 				Name:    "usage_logs_by_api_key_id_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{UsageLogsColumns[3], UsageLogsColumns[1]},
+			},
+			{
+				Name:    "usage_logs_by_project_id_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageLogsColumns[24], UsageLogsColumns[4], UsageLogsColumns[1]},
 			},
 		},
 	}

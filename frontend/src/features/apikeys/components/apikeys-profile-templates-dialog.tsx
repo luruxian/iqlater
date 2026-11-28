@@ -4,6 +4,7 @@ import { IconCopy, IconLoader2, IconPencil, IconPlus, IconTemplate, IconTrash, I
 import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { useSelectedProjectId } from '@/stores/projectStore';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useApiKeyProfileTemplates, useDeleteApiKeyProfileTemplate } from '../data/apikeys';
@@ -34,6 +36,7 @@ function TemplateItem({
   onEdit,
   isEditing,
   onCopy,
+  canManage,
 }: {
   template: ApiKeyProfileTemplate;
   onDelete: (template: ApiKeyProfileTemplate) => void;
@@ -41,6 +44,7 @@ function TemplateItem({
   onEdit: (template: ApiKeyProfileTemplate) => void;
   isEditing: boolean;
   onCopy: (template: ApiKeyProfileTemplate) => void;
+  canManage: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('zh') ? zhCN : enUS;
@@ -51,7 +55,14 @@ function TemplateItem({
     <div className='hover:bg-muted/50 flex items-start gap-3 rounded-md px-3 py-2.5 transition-colors'>
       <IconTemplate className='text-muted-foreground mt-0.5 h-4 w-4 shrink-0' />
       <div className='min-w-0 flex-1'>
-        <div className='text-foreground text-sm font-medium'>{template.name}</div>
+        <div className='flex flex-wrap items-center gap-2'>
+          <span className='text-foreground text-sm font-medium'>{template.name}</span>
+          {template.applyToNewPersonalKeys && (
+            <Badge variant='secondary' className='text-[10px]'>
+              {t('apikeys.profileTemplates.applyToNewPersonalKeysBadge')}
+            </Badge>
+          )}
+        </div>
         {template.description && <div className='text-muted-foreground mt-0.5 truncate text-xs'>{template.description}</div>}
         <div className='text-muted-foreground/70 mt-1 flex items-center gap-3 text-[11px]'>
           <span>{template.profile?.name}</span>
@@ -60,33 +71,39 @@ function TemplateItem({
           <span>{createdDate}</span>
         </div>
       </div>
-      <button
-        type='button'
-        className='text-muted-foreground hover:text-foreground mt-0.5 shrink-0 rounded p-1 transition-colors'
-        onClick={() => onCopy(template)}
-        aria-label={t('apikeys.templateTransfer.copyButton')}
-      >
-        <IconCopy className='h-3.5 w-3.5' />
-      </button>
+      {canManage && (
+        <button
+          type='button'
+          className='text-muted-foreground hover:text-foreground mt-0.5 shrink-0 rounded p-1 transition-colors'
+          onClick={() => onCopy(template)}
+          aria-label={t('apikeys.templateTransfer.copyButton')}
+        >
+          <IconCopy className='h-3.5 w-3.5' />
+        </button>
+      )}
       <TemplateExportButton template={template} />
-      <button
-        type='button'
-        className='text-muted-foreground hover:text-foreground mt-0.5 shrink-0 rounded p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50'
-        onClick={() => onEdit(template)}
-        disabled={isEditing}
-        aria-label={t('apikeys.profileTemplates.editButton')}
-      >
-        <IconPencil className='h-3.5 w-3.5' />
-      </button>
-      <button
-        type='button'
-        className='text-muted-foreground hover:text-destructive mt-0.5 shrink-0 rounded p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50'
-        onClick={() => onDelete(template)}
-        disabled={isDeleting}
-        aria-label={t('apikeys.templates.deleteButton')}
-      >
-        {isDeleting ? <IconLoader2 className='h-3.5 w-3.5 animate-spin' /> : <IconTrash className='h-3.5 w-3.5' />}
-      </button>
+      {canManage && (
+        <>
+          <button
+            type='button'
+            className='text-muted-foreground hover:text-foreground mt-0.5 shrink-0 rounded p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+            onClick={() => onEdit(template)}
+            disabled={isEditing}
+            aria-label={t('apikeys.profileTemplates.editButton')}
+          >
+            <IconPencil className='h-3.5 w-3.5' />
+          </button>
+          <button
+            type='button'
+            className='text-muted-foreground hover:text-destructive mt-0.5 shrink-0 rounded p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+            onClick={() => onDelete(template)}
+            disabled={isDeleting}
+            aria-label={t('apikeys.templates.deleteButton')}
+          >
+            {isDeleting ? <IconLoader2 className='h-3.5 w-3.5 animate-spin' /> : <IconTrash className='h-3.5 w-3.5' />}
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -94,6 +111,8 @@ function TemplateItem({
 export function ApiKeysProfileTemplatesDialog({ open, onOpenChange }: ApiKeysProfileTemplatesDialogProps) {
   const { t } = useTranslation();
   const selectedProjectId = useSelectedProjectId();
+  const { apiKeyPermissions } = usePermissions();
+  const canManage = apiKeyPermissions.canManageLimits;
   const [deleteTarget, setDeleteTarget] = useState<ApiKeyProfileTemplate | null>(null);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -132,7 +151,7 @@ export function ApiKeysProfileTemplatesDialog({ open, onOpenChange }: ApiKeysPro
             <DialogDescription>{t('apikeys.profileTemplates.description')}</DialogDescription>
           </DialogHeader>
 
-          {!isEmpty && !isLoadingTemplates && (
+          {canManage && !isEmpty && !isLoadingTemplates && (
             <div className='flex justify-end gap-2'>
               <Button variant='outline' size='sm' onClick={() => setImportDialogOpen(true)} className='flex items-center gap-2'>
                 <IconUpload className='h-4 w-4' />
@@ -171,6 +190,7 @@ export function ApiKeysProfileTemplatesDialog({ open, onOpenChange }: ApiKeysPro
                     onEdit={setEditTarget}
                     isEditing={editingTemplateId === template.id}
                     onCopy={setCopyTarget}
+                    canManage={canManage}
                   />
                 ))}
               </div>
@@ -178,7 +198,7 @@ export function ApiKeysProfileTemplatesDialog({ open, onOpenChange }: ApiKeysPro
           )}
 
           <div className='flex justify-end gap-2'>
-            {isEmpty && (
+            {canManage && isEmpty && (
               <>
                 <Button variant='outline' onClick={() => setImportDialogOpen(true)} size='sm' className='flex items-center gap-2'>
                   <IconUpload className='h-4 w-4' />

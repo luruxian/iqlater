@@ -71,6 +71,10 @@ func setupOpenAPI(t *testing.T, serviceAccountScopes []string) (*mutationResolve
 		Save(setupCtx)
 	require.NoError(t, err)
 
+	// Key limits follow the service account's creator, who owns the project.
+	_, err = client.UserProject.Create().SetUserID(owner.ID).SetProjectID(proj.ID).SetIsOwner(true).Save(setupCtx)
+	require.NoError(t, err)
+
 	saKey, err := biz.GenerateAPIKey("ah")
 	require.NoError(t, err)
 

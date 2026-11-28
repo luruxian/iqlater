@@ -359,6 +359,11 @@ func (_q *APIKeyProfileTemplateQuery) collectField(ctx context.Context, oneNode 
 				selectedFields = append(selectedFields, apikeyprofiletemplate.FieldProfile)
 				fieldSeen[apikeyprofiletemplate.FieldProfile] = struct{}{}
 			}
+		case "applyToNewPersonalKeys":
+			if _, ok := fieldSeen[apikeyprofiletemplate.FieldApplyToNewPersonalKeys]; !ok {
+				selectedFields = append(selectedFields, apikeyprofiletemplate.FieldApplyToNewPersonalKeys)
+				fieldSeen[apikeyprofiletemplate.FieldApplyToNewPersonalKeys] = struct{}{}
+			}
 		case "id":
 		case "__typename":
 		default:

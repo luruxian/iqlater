@@ -1,3 +1,4 @@
+import { usePermissions } from '@/hooks/usePermissions';
 import { useApiKeysContext } from '../context/apikeys-context';
 import { useApiKey, useUpdateApiKeyProfiles } from '../data/apikeys';
 import { type UpdateApiKeyProfilesInput } from '../data/schema';
@@ -7,6 +8,7 @@ import { ApiKeysBulkDisableDialog } from './apikeys-bulk-disable-dialog';
 import { ApiKeysBulkEnableDialog } from './apikeys-bulk-enable-dialog';
 import { ApiKeysCreateDialog } from './apikeys-create-dialog';
 import { ApiKeysEditDialog } from './apikeys-edit-dialog';
+import { ApiKeysIssueForMemberDialog } from './apikeys-issue-for-member-dialog';
 import { ApiKeysProfileTemplatesDialog } from './apikeys-profile-templates-dialog';
 import { ApiKeyProfilesDialog } from './apikeys-profiles-dialog';
 // import { ApiKeysDeleteDialog } from './apikeys-delete-dialog'
@@ -18,6 +20,7 @@ export function ApiKeysDialogs() {
   return (
     <>
       <ApiKeysCreateDialog />
+      <ApiKeysIssueForMemberDialog />
       <ApiKeysEditDialog />
       {/* <ApiKeysDeleteDialog /> */}
       <ApiKeysStatusDialog />
@@ -36,6 +39,7 @@ export function ApiKeysDialogs() {
 function ApiKeysProfilesDialogWrapper() {
   const { isDialogOpen, closeDialog, selectedApiKey } = useApiKeysContext();
   const updateProfilesMutation = useUpdateApiKeyProfiles();
+  const { apiKeyPermissions } = usePermissions();
   const { data: apiKeyDetail } = useApiKey(selectedApiKey?.id || '');
 
   const handleSubmit = (data: UpdateApiKeyProfilesInput) => {
@@ -53,7 +57,7 @@ function ApiKeysProfilesDialogWrapper() {
 
   return (
     <ApiKeyProfilesDialog
-      open={isDialogOpen.profiles}
+      open={isDialogOpen.profiles && apiKeyPermissions.canManageLimits}
       onOpenChange={(open) => !open && closeDialog('profiles')}
       onSubmit={handleSubmit}
       loading={updateProfilesMutation.isPending}

@@ -201,8 +201,8 @@ function ApiKeysContent() {
   const canViewCreators = userPermissions.canRead;
 
   const columns = React.useMemo(
-    () => createColumns(t, apiKeyPermissions.canWrite, canViewCreators),
-    [t, apiKeyPermissions.canWrite, canViewCreators]
+    () => createColumns(t, apiKeyPermissions.canWrite, canViewCreators, apiKeyPermissions.canManageLimits),
+    [t, apiKeyPermissions.canWrite, canViewCreators, apiKeyPermissions.canManageLimits]
   );
 
   return (

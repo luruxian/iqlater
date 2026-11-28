@@ -368,3 +368,46 @@ func TestUsageStatsByUserUsesProjectOwnerPolicy(t *testing.T) {
 	_, err = resolver.UsageStatsByUser(asUser(member.ID), nil)
 	require.ErrorContains(t, err, "only project owners")
 }
+
+func TestUsageStatsByUserAttributesRecordedUserPlaygroundAndDeletedKeys(t *testing.T) {
+	resolver, setupCtx := newDashboardUsageTestResolver(t)
+	client := resolver.client
+	project := client.Project.Create().SetName("customer").SaveX(setupCtx)
+	owner := client.User.Create().SetEmail("owner@customer.test").SetPassword("password").SaveX(setupCtx)
+	alice := client.User.Create().SetEmail("alice@customer.test").SetPassword("password").SaveX(setupCtx)
+	bob := client.User.Create().SetEmail("bob@customer.test").SetPassword("password").SaveX(setupCtx)
+	client.UserProject.Create().SetUserID(owner.ID).SetProjectID(project.ID).SetIsOwner(true).SaveX(setupCtx)
+	client.UserProject.Create().SetUserID(alice.ID).SetProjectID(project.ID).SaveX(setupCtx)
+	client.UserProject.Create().SetUserID(bob.ID).SetProjectID(project.ID).SaveX(setupCtx)
+
+	aliceKey := client.APIKey.Create().SetName("alice key").SetKey("alice-key").
+		SetUserID(alice.ID).SetProjectID(project.ID).SaveX(setupCtx)
+	deletedKey := client.APIKey.Create().SetName("old bob key").SetKey("bob-old-key").
+		SetUserID(bob.ID).SetProjectID(project.ID).SetDeletedAt(1).SaveX(setupCtx)
+
+	logUsage := func(apiKeyID *int, userID *int, tokens int64) {
+		create := client.UsageLog.Create().SetRequestID(1).SetProjectID(project.ID).
+			SetModelID("model-a").SetTotalTokens(tokens).SetNillableUserID(userID)
+		if apiKeyID != nil {
+			create.SetAPIKeyID(*apiKeyID)
+		}
+		create.SaveX(setupCtx)
+	}
+	logUsage(&aliceKey.ID, &alice.ID, 10)  // recorded user
+	logUsage(&aliceKey.ID, nil, 5)         // older row: falls back to the key's creator
+	logUsage(nil, &bob.ID, 7)              // Playground: no API key
+	logUsage(&deletedKey.ID, &bob.ID, 100) // key deleted since
+
+	currentUser := client.User.Query().Where(user.IDEQ(owner.ID)).WithProjectUsers().OnlyX(setupCtx)
+	ctx := authz.NewUserContext(ent.NewContext(t.Context(), client), owner.ID)
+	ctx = contexts.WithProjectID(contexts.WithUser(ctx, currentUser), project.ID)
+
+	stats, err := resolver.UsageStatsByUser(ctx, nil)
+	require.NoError(t, err)
+
+	tokensByUser := map[int]int{}
+	for _, s := range stats {
+		tokensByUser[s.UserID.ID] = s.TotalTokens
+	}
+	require.Equal(t, map[int]int{alice.ID: 15, bob.ID: 107}, tokensByUser)
+}

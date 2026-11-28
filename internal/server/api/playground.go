@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 
-	"github.com/looplj/axonhub/internal/contexts"
+	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/log"
 	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/internal/pkg/xerrors"
@@ -234,47 +234,16 @@ func (handlers *PlaygroundHandlers) ChatCompletion(c *gin.Context) {
 		return
 	}
 
-	channelIDStr := c.Query("channel_id")
-	if channelIDStr == "" {
-		channelIDStr = c.GetHeader("X-Channel-ID")
-	}
+	// The project comes only from X-Project-ID, which WithProjectID has already parsed.
+	channelIDStr := c.GetHeader("X-Channel-ID")
 
-	// Extract project ID from header
-	projectIDStr := c.Query("project_id")
-	if projectIDStr == "" {
-		projectIDStr = c.GetHeader("X-Project-ID")
-	}
-
-	// Parse and set project ID in context if provided
-	if projectIDStr != "" {
-		projectID, err := objects.ParseGUID(projectIDStr)
-		if err != nil {
-			log.Error(ctx, "Error parsing project ID", log.Cause(err))
-			c.JSON(http.StatusBadRequest, PlaygroundResponseError{
-				Error: struct {
-					Code    int    `json:"code,omitempty"`
-					Message string `json:"message"`
-				}{
-					Code:    http.StatusBadRequest,
-					Message: "Invalid project ID: " + err.Error(),
-				},
-			})
-
-			return
-		}
-
-		ctx = contexts.WithProjectID(ctx, projectID.ID)
-		// Update the request context
-		c.Request = c.Request.WithContext(ctx)
-	}
-
-	log.Debug(ctx, "Received request", log.Any("request", genericReq), log.String("channel_id", channelIDStr), log.String("project_id", projectIDStr))
-
-	processor := handlers.ChatCompletionOrchestrator
-
+	var channelID objects.GUID
 	if channelIDStr != "" {
-		channelID, err := objects.ParseGUID(channelIDStr)
-		if err != nil {
+		channelID, err = objects.ParseGUID(channelIDStr)
+		if err != nil || channelID.Type != ent.TypeChannel {
+			if err == nil {
+				err = errors.New("not a channel id")
+			}
 			log.Error(ctx, "Error parsing channel ID", log.Cause(err))
 			c.JSON(http.StatusBadRequest, PlaygroundResponseError{
 				Error: struct {
@@ -282,14 +251,51 @@ func (handlers *PlaygroundHandlers) ChatCompletion(c *gin.Context) {
 					Message string `json:"message"`
 				}{
 					Code:    http.StatusBadRequest,
-					Message: err.Error(),
+					Message: "Invalid channel ID: " + err.Error(),
 				},
 			})
 
 			return
 		}
+	}
 
+	access, err := handlers.ChannelService.AuthorizePlayground(ctx, channelID.ID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		message := http.StatusText(http.StatusInternalServerError)
+		if codedErr, ok := errors.AsType[*xerrors.CodedError](err); ok && codedErr.Code == xerrors.ErrCodeForbidden {
+			status = http.StatusForbidden
+			message = codedErr.Message
+		} else {
+			log.Error(ctx, "Error authorizing playground request", log.Cause(err))
+		}
+		c.JSON(status, PlaygroundResponseError{
+			Error: struct {
+				Code    int    `json:"code,omitempty"`
+				Message string `json:"message"`
+			}{
+				Code:    status,
+				Message: message,
+			},
+		})
+
+		return
+	}
+
+	log.Debug(ctx, "Received request", log.Any("request", genericReq), log.String("channel_id", channelIDStr))
+
+	processor := handlers.ChatCompletionOrchestrator
+
+	if channelIDStr != "" {
 		processor = processor.WithChannelSelector(orchestrator.NewSpecifiedChannelSelector(handlers.ChannelService, channelID))
+	} else if profile := access.ProjectProfile; profile != nil {
+		// Without an API key the orchestrator applies no project boundary, so narrow it here.
+		if len(profile.ChannelIDs) > 0 {
+			processor = processor.WithAllowedChannels(profile.ChannelIDs)
+		}
+		if len(profile.ChannelTags) > 0 {
+			processor = processor.WithChannelTags(profile.ChannelTags, profile.ChannelTagsMatchMode)
+		}
 	}
 
 	result, err := processor.Process(ctx, genericReq)

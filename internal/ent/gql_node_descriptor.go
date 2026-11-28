@@ -186,7 +186,7 @@ func (_m *APIKeyProfileTemplate) Node(ctx context.Context) (node *Node, err erro
 	node = &Node{
 		ID:     _m.ID,
 		Type:   "APIKeyProfileTemplate",
-		Fields: make([]*Field, 6),
+		Fields: make([]*Field, 7),
 		Edges:  make([]*Edge, 1),
 	}
 	var buf []byte
@@ -236,6 +236,14 @@ func (_m *APIKeyProfileTemplate) Node(ctx context.Context) (node *Node, err erro
 	node.Fields[5] = &Field{
 		Type:  "*objects.APIKeyProfile",
 		Name:  "profile",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.ApplyToNewPersonalKeys); err != nil {
+		return nil, err
+	}
+	node.Fields[6] = &Field{
+		Type:  "bool",
+		Name:  "apply_to_new_personal_keys",
 		Value: string(buf),
 	}
 	node.Edges[0] = &Edge{

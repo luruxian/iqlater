@@ -226,6 +226,7 @@ export const apiKeyProfileTemplateSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   linkedProfilesCount: z.number().int().nonnegative().default(0),
+  applyToNewPersonalKeys: z.boolean().default(false),
 });
 export type ApiKeyProfileTemplate = z.infer<typeof apiKeyProfileTemplateSchema>;
 
@@ -234,6 +235,7 @@ export const createApiKeyProfileTemplateInputSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   projectID: z.string(),
+  applyToNewPersonalKeys: z.boolean().optional(),
   profile: apiKeyProfileSchema,
 });
 export type CreateApiKeyProfileTemplateInput = z.infer<typeof createApiKeyProfileTemplateInputSchema>;
@@ -242,6 +244,7 @@ export type CreateApiKeyProfileTemplateInput = z.infer<typeof createApiKeyProfil
 export const updateApiKeyProfileTemplateInputSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
   description: z.string().optional(),
+  applyToNewPersonalKeys: z.boolean().optional(),
   profile: apiKeyProfileSchema.optional(),
 });
 export type UpdateApiKeyProfileTemplateInput = z.infer<typeof updateApiKeyProfileTemplateInputSchema>;

@@ -94,7 +94,8 @@ function ActiveProfileCell({ apiKey, canWrite }: { apiKey: ApiKey; canWrite: boo
 export const createColumns = (
   t: ReturnType<typeof useTranslation>['t'],
   canWrite: boolean = true,
-  canViewCreators: boolean = false
+  canViewCreators: boolean = false,
+  canManageLimits: boolean = false
 ): ColumnDef<ApiKey>[] => [
   ...(canWrite
     ? [
@@ -224,7 +225,7 @@ export const createColumns = (
     id: 'activeProfile',
     accessorFn: (row) => row.profiles?.activeProfile || '',
     header: ({ column }) => <DataTableColumnHeader column={column} title={t('apikeys.columns.activeProfile')} />,
-    cell: ({ row }) => <ActiveProfileCell apiKey={row.original} canWrite={canWrite} />,
+    cell: ({ row }) => <ActiveProfileCell apiKey={row.original} canWrite={canWrite && canManageLimits} />,
     enableSorting: false,
   },
   {

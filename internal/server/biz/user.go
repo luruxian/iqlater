@@ -257,9 +257,19 @@ func (s *UserService) UpdateUserStatus(ctx context.Context, id int, status user.
 		}
 		client := s.entFromContext(ctx)
 
-		result, err := client.User.UpdateOneID(id).
-			SetStatus(status).
-			Save(ctx)
+		updateStatus := func(ctx context.Context) (*ent.User, error) {
+			return client.User.UpdateOneID(id).SetStatus(status).Save(ctx)
+		}
+
+		var result *ent.User
+		caller, _ := contexts.GetUser(ctx)
+		if s.permissionValidator.projectOwnerManagesAccount(caller, target) {
+			// The User policy only admits system-level writers; a project owner was
+			// authorized above for an employee who belongs only to their projects.
+			result, err = authz.RunAsHost(ctx, client, "project-owner-update-user-status", updateStatus)
+		} else {
+			result, err = updateStatus(ctx)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to update user status: %w", err)
 		}
@@ -522,6 +532,12 @@ func (s *UserService) RemoveUserFromProject(ctx context.Context, userID, project
 			userrole.HasRoleWith(role.ProjectIDEQ(projectID)),
 		).Exec(ctx); err != nil {
 			return fmt.Errorf("failed to remove user project roles: %w", err)
+		}
+		// Authentication also rejects keys of non-members; disabling makes the revocation visible.
+		if s.apiKeyService != nil {
+			if err := s.apiKeyService.disablePersonalAPIKeysByUserInProject(ctx, userID, projectID); err != nil {
+				return err
+			}
 		}
 		runAfterCommit(ctx, func(ctx context.Context) {
 			s.invalidateUserCache(ctx, userID)

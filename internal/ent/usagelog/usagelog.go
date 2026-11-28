@@ -27,6 +27,8 @@ const (
 	FieldRequestID = "request_id"
 	// FieldAPIKeyID holds the string denoting the api_key_id field in the database.
 	FieldAPIKeyID = "api_key_id"
+	// FieldUserID holds the string denoting the user_id field in the database.
+	FieldUserID = "user_id"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
 	// FieldChannelID holds the string denoting the channel_id field in the database.
@@ -105,6 +107,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldRequestID,
 	FieldAPIKeyID,
+	FieldUserID,
 	FieldProjectID,
 	FieldChannelID,
 	FieldModelID,
@@ -236,6 +239,11 @@ func ByRequestID(opts ...sql.OrderTermOption) OrderOption {
 // ByAPIKeyID orders the results by the api_key_id field.
 func ByAPIKeyID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAPIKeyID, opts...).ToFunc()
+}
+
+// ByUserID orders the results by the user_id field.
+func ByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserID, opts...).ToFunc()
 }
 
 // ByProjectID orders the results by the project_id field.

@@ -51,6 +51,10 @@ func (APIKeyProfileTemplate) Fields() []ent.Field {
 			Annotations(
 				entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
 			),
+		// At most one template per project has this set; biz clears the others.
+		field.Bool("apply_to_new_personal_keys").
+			Default(false).
+			Comment("Apply this template as the active profile of every new personal API key in the project"),
 	}
 }
 

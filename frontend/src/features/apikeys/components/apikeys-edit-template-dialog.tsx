@@ -63,6 +63,7 @@ export function ApiKeyEditTemplateDialog({ open, onOpenChange, template }: ApiKe
     return {
       name: template.name,
       description: template.description ?? '',
+      applyToNewPersonalKeys: template.applyToNewPersonalKeys ?? false,
       profile: {
         name: profile?.name ?? '',
         modelMappings:
@@ -140,6 +141,7 @@ export function ApiKeyEditTemplateDialog({ open, onOpenChange, template }: ApiKe
         input: {
           name: values.name,
           description: values.description || '',
+          applyToNewPersonalKeys: values.applyToNewPersonalKeys ?? false,
           profile: {
             ...values.profile,
             name: values.name,
@@ -216,6 +218,21 @@ export function ApiKeyEditTemplateDialog({ open, onOpenChange, template }: ApiKe
                       )}
                     />
                   </div>
+                  <FormField
+                    control={form.control}
+                    name='applyToNewPersonalKeys'
+                    render={({ field }) => (
+                      <FormItem className='flex items-center justify-between gap-3 rounded-lg border p-4 space-y-0'>
+                        <div className='space-y-0.5'>
+                          <FormLabel>{t('apikeys.profileTemplates.applyToNewPersonalKeysLabel')}</FormLabel>
+                          <FormDescription>{t('apikeys.profileTemplates.applyToNewPersonalKeysDescription')}</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <div className='border-t pt-6'>

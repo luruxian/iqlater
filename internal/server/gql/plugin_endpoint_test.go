@@ -382,6 +382,7 @@ type pluginEndpointFixture struct {
 	readerToken    string
 	serviceAccount string
 	readerID       int
+	auth           *biz.AuthService
 	channelID      int
 	pages          *ent.Plugin
 	other          *ent.Plugin
@@ -526,6 +527,7 @@ func newPluginEndpointFixture(t *testing.T, name string) *pluginEndpointFixture 
 		readerToken:    token(reader),
 		serviceAccount: serviceKey,
 		readerID:       reader.ID,
+		auth:           authSvc,
 		channelID:      ch.ID,
 		pages:          pages,
 		other:          other,
@@ -698,6 +700,7 @@ var pluginMutationFieldSnapshot = []string{
 	"createChannelOverrideTemplate",
 	"createDataStorage",
 	"createModel",
+	"createPersonalAPIKeyForUser",
 	"createPluginUISession",
 	"createProject",
 	"createPrompt",

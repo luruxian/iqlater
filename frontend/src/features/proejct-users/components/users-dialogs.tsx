@@ -2,6 +2,7 @@ import { useUsers } from '../context/users-context';
 import { ProjectUserActionDialog } from './project-user-action-dialog';
 import { UsersInviteDialog } from './users-invite-dialog';
 import { UsersDeleteDialog } from './users-delete-dialog';
+import { UsersStatusDialog } from './users-status-dialog';
 
 export function UsersDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useUsers();
@@ -30,6 +31,19 @@ export function UsersDialogs() {
             open={open === 'remove'}
             onOpenChange={() => {
               setOpen('remove');
+              setTimeout(() => {
+                setCurrentRow(null);
+              }, 500);
+            }}
+            currentRow={currentRow}
+          />
+
+          <UsersStatusDialog
+            key={`user-status-${currentRow.id}`}
+            open={open === 'status'}
+            onOpenChange={(nextOpen) => {
+              if (nextOpen) return;
+              setOpen(null);
               setTimeout(() => {
                 setCurrentRow(null);
               }, 500);

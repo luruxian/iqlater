@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
-import { USERS_QUERY, CREATE_USER_MUTATION, UPDATE_USER_MUTATION, UPDATE_USER_STATUS_MUTATION } from '@/gql/users';
+import { USERS_QUERY, CREATE_USER_MUTATION, UPDATE_USER_MUTATION } from '@/gql/users';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useSelectedProjectId } from '@/stores/projectStore';
@@ -94,6 +94,18 @@ export const UPDATE_PROJECT_USER_MUTATION = `
       projectID
       isOwner
       scopes
+    }
+  }
+`;
+
+// Mutation to activate/deactivate a member account. Project owners may call it
+// for members that belong only to projects they own, so only select fields
+// the caller is guaranteed to read.
+export const UPDATE_PROJECT_MEMBER_STATUS_MUTATION = `
+  mutation UpdateProjectMemberStatus($id: ID!, $status: UserStatus!) {
+    updateUserStatus(id: $id, status: $status) {
+      id
+      status
     }
   }
 `;
@@ -284,15 +296,20 @@ export function useUpdateUserStatus() {
     mutationFn: async ({ id, status }: { id: string; status: 'activated' | 'deactivated' }) => {
       try {
         const headers = selectedProjectId ? { 'X-Project-ID': selectedProjectId } : undefined;
-        const data = await graphqlRequest<{ updateUserStatus: boolean }>(UPDATE_USER_STATUS_MUTATION, { id, status }, headers);
+        const data = await graphqlRequest<{ updateUserStatus: { id: string; status: string } }>(
+          UPDATE_PROJECT_MEMBER_STATUS_MUTATION,
+          { id, status },
+          headers
+        );
         return data.updateUserStatus;
       } catch (error) {
-        handleError(error, { context: 'Update User Status' });
+        handleError(error, { context: t('users.dialogs.accountStatus.errorContext') });
         throw error;
       }
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['project-users', selectedProjectId] });
       queryClient.invalidateQueries({ queryKey: ['user', variables.id] });
       const statusText = variables.status === 'activated' ? t('users.status.activated') : t('users.status.deactivated');
       toast.success(t('users.messages.statusUpdateSuccess', { status: statusText }));

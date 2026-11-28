@@ -58,6 +58,10 @@ func setupAdminGraphqlAuth(t *testing.T) adminGraphqlAuthFixture {
 		Save(ctx)
 	require.NoError(t, err)
 
+	// A key only authenticates while its creator belongs to the key's project.
+	_, err = client.UserProject.Create().SetUserID(owner.ID).SetProjectID(proj.ID).Save(ctx)
+	require.NoError(t, err)
+
 	mustKey := func(name string, keyType apikey.Type) string {
 		value, err := biz.GenerateAPIKey("ah")
 		require.NoError(t, err)

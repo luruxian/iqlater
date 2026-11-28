@@ -30,6 +30,8 @@ const (
 	FieldProjectID = "project_id"
 	// FieldProfile holds the string denoting the profile field in the database.
 	FieldProfile = "profile"
+	// FieldApplyToNewPersonalKeys holds the string denoting the apply_to_new_personal_keys field in the database.
+	FieldApplyToNewPersonalKeys = "apply_to_new_personal_keys"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// Table holds the table name of the apikeyprofiletemplate in the database.
@@ -53,6 +55,7 @@ var Columns = []string{
 	FieldDescription,
 	FieldProjectID,
 	FieldProfile,
+	FieldApplyToNewPersonalKeys,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -86,6 +89,8 @@ var (
 	DefaultDescription string
 	// DefaultProfile holds the default value on creation for the "profile" field.
 	DefaultProfile *objects.APIKeyProfile
+	// DefaultApplyToNewPersonalKeys holds the default value on creation for the "apply_to_new_personal_keys" field.
+	DefaultApplyToNewPersonalKeys bool
 )
 
 // OrderOption defines the ordering options for the APIKeyProfileTemplate queries.
@@ -124,6 +129,11 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByProjectID orders the results by the project_id field.
 func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
+// ByApplyToNewPersonalKeys orders the results by the apply_to_new_personal_keys field.
+func ByApplyToNewPersonalKeys(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldApplyToNewPersonalKeys, opts...).ToFunc()
 }
 
 // ByProjectField orders the results by project field.

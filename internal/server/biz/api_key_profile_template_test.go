@@ -692,7 +692,7 @@ func TestLoadTemplate_DifferentProject(t *testing.T) {
 // TestLoadTemplate_PersonalKeyGuard runs LoadTemplate under the real privacy
 // policy. A project owner can read another member's personal key but must not
 // load a template into it; the creator and a system owner can.
-func TestLoadTemplate_PersonalKeyGuard(t *testing.T) {
+func TestLoadTemplate_LimitsGuard(t *testing.T) {
 	svc, client := setupTestTemplateService(t)
 	defer client.Close()
 
@@ -758,15 +758,15 @@ func TestLoadTemplate_PersonalKeyGuard(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, apiKey.ID, visible.ID)
 
-	// ...but cannot load a template into it.
-	_, err = svc.LoadTemplate(projectOwnerCtx, template.ID, apiKey.ID)
-	require.ErrorContains(t, err, "personal API key can only be modified by its creator or a system owner")
+	// Templates carry limits, so the employee who created the key cannot load one...
+	_, err = svc.LoadTemplate(userCtx(creator), template.ID, apiKey.ID)
+	require.ErrorContains(t, err, "only project owners can change API key limits")
 	unchanged, err := client.APIKey.Get(setupCtx, apiKey.ID)
 	require.NoError(t, err)
 	require.True(t, unchanged.Profiles == nil || len(unchanged.Profiles.Profiles) == 0)
 
-	// The creator can.
-	updatedKey, err := svc.LoadTemplate(userCtx(creator), template.ID, apiKey.ID)
+	// ...while the project owner can.
+	updatedKey, err := svc.LoadTemplate(projectOwnerCtx, template.ID, apiKey.ID)
 	require.NoError(t, err)
 	require.Len(t, updatedKey.Profiles.Profiles, 1)
 

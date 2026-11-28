@@ -34,6 +34,8 @@ type APIKeyProfileTemplate struct {
 	ProjectID int `json:"project_id,omitempty"`
 	// Profile holds the value of the "profile" field.
 	Profile *objects.APIKeyProfile `json:"profile,omitempty"`
+	// Apply this template as the active profile of every new personal API key in the project
+	ApplyToNewPersonalKeys bool `json:"apply_to_new_personal_keys,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the APIKeyProfileTemplateQuery when eager-loading is set.
 	Edges        APIKeyProfileTemplateEdges `json:"edges"`
@@ -69,6 +71,8 @@ func (*APIKeyProfileTemplate) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case apikeyprofiletemplate.FieldProfile:
 			values[i] = new([]byte)
+		case apikeyprofiletemplate.FieldApplyToNewPersonalKeys:
+			values[i] = new(sql.NullBool)
 		case apikeyprofiletemplate.FieldID, apikeyprofiletemplate.FieldDeletedAt, apikeyprofiletemplate.FieldProjectID:
 			values[i] = new(sql.NullInt64)
 		case apikeyprofiletemplate.FieldName, apikeyprofiletemplate.FieldDescription:
@@ -140,6 +144,12 @@ func (_m *APIKeyProfileTemplate) assignValues(columns []string, values []any) er
 					return fmt.Errorf("unmarshal field profile: %w", err)
 				}
 			}
+		case apikeyprofiletemplate.FieldApplyToNewPersonalKeys:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field apply_to_new_personal_keys", values[i])
+			} else if value.Valid {
+				_m.ApplyToNewPersonalKeys = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -201,6 +211,9 @@ func (_m *APIKeyProfileTemplate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("profile=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Profile))
+	builder.WriteString(", ")
+	builder.WriteString("apply_to_new_personal_keys=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ApplyToNewPersonalKeys))
 	builder.WriteByte(')')
 	return builder.String()
 }

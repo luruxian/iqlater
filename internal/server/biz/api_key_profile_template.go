@@ -8,7 +8,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/fx"
 
-	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/apikeyprofiletemplate"
@@ -37,6 +36,11 @@ func NewAPIKeyProfileTemplateService(params APIKeyProfileTemplateServiceParams) 
 func (s *APIKeyProfileTemplateService) CreateTemplate(ctx context.Context, input ent.CreateAPIKeyProfileTemplateInput, profile *objects.APIKeyProfile) (*ent.APIKeyProfileTemplate, error) {
 	client := s.entFromContext(ctx)
 
+	// Templates publish limits into linked keys, so they follow the same rule as key profiles.
+	if err := requireAPIKeyLimitsManager(ctx, client, input.ProjectID); err != nil {
+		return nil, err
+	}
+
 	if profile != nil {
 		profile.TemplateID = nil
 		profile.TemplateName = ""
@@ -46,19 +50,29 @@ func (s *APIKeyProfileTemplateService) CreateTemplate(ctx context.Context, input
 		}
 	}
 
-	create := client.APIKeyProfileTemplate.Create().
-		SetInput(input).
-		SetProfile(profile)
+	var template *ent.APIKeyProfileTemplate
+	err := s.RunInTransaction(ctx, func(ctx context.Context) error {
+		client := s.entFromContext(ctx)
 
-	template, err := create.Save(ctx)
-	if err != nil {
-		// Name uniqueness is enforced by the (project_id, name, deleted_at) unique
-		// index; surface a friendly error instead of a raw constraint violation.
-		if ent.IsConstraintError(err) {
-			return nil, xerrors.DuplicateNameError("Template", input.Name)
+		created, err := client.APIKeyProfileTemplate.Create().
+			SetInput(input).
+			SetProfile(profile).
+			Save(ctx)
+		if err != nil {
+			// Name uniqueness is enforced by the (project_id, name, deleted_at) unique
+			// index; surface a friendly error instead of a raw constraint violation.
+			if ent.IsConstraintError(err) {
+				return xerrors.DuplicateNameError("Template", input.Name)
+			}
+
+			return fmt.Errorf("failed to create template: %w", err)
 		}
+		template = created
 
-		return nil, fmt.Errorf("failed to create template: %w", err)
+		return clearOtherNewPersonalKeyTemplates(ctx, client, created)
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return template, nil
@@ -127,6 +141,9 @@ func (s *APIKeyProfileTemplateService) UpdateTemplate(ctx context.Context, id in
 		if getErr != nil {
 			return fmt.Errorf("failed to get template: %w", getErr)
 		}
+		if err := requireAPIKeyLimitsManager(ctx, client, existing.ProjectID); err != nil {
+			return err
+		}
 
 		update := client.APIKeyProfileTemplate.UpdateOneID(id).
 			SetInput(input)
@@ -169,7 +186,7 @@ func (s *APIKeyProfileTemplateService) UpdateTemplate(ctx context.Context, id in
 			}
 		}
 
-		return nil
+		return clearOtherNewPersonalKeyTemplates(ctx, client, template)
 	})
 	if err != nil {
 		return nil, err
@@ -187,6 +204,9 @@ func (s *APIKeyProfileTemplateService) DeleteTemplate(ctx context.Context, id in
 		template, getErr = client.APIKeyProfileTemplate.Get(ctx, id)
 		if getErr != nil {
 			return fmt.Errorf("failed to get template for deletion: %w", getErr)
+		}
+		if err := requireAPIKeyLimitsManager(ctx, client, template.ProjectID); err != nil {
+			return err
 		}
 
 		if detachErr := s.detachLinkedProfiles(ctx, template); detachErr != nil {
@@ -226,39 +246,14 @@ func (s *APIKeyProfileTemplateService) LoadTemplate(ctx context.Context, templat
 			return fmt.Errorf("template and API key must belong to the same project")
 		}
 
-		if apiKey.Type == apikey.TypePersonal {
-			user, ok := contexts.GetUser(ctx)
-			if !ok {
-				return fmt.Errorf("user not found in context")
-			}
-			if apiKey.UserID != user.ID && !user.IsOwner {
-				return fmt.Errorf("personal API key can only be modified by its creator or a system owner")
-			}
-		}
-
-		templateProfile := template.Profile.Clone()
-		if templateProfile == nil {
-			return fmt.Errorf("template has no profile")
-		}
-		if err := normalizeAndValidateProfileRoutingPolicy(templateProfile); err != nil {
+		if err := requireAPIKeyLimitsManager(ctx, client, apiKey.ProjectID); err != nil {
 			return err
 		}
 
-		existingProfiles := apiKey.Profiles
-		if existingProfiles == nil {
-			existingProfiles = &objects.APIKeyProfiles{}
+		existingProfiles, _, err := appendTemplateProfile(apiKey.Profiles, template)
+		if err != nil {
+			return err
 		}
-
-		profileName := templateProfile.Name
-		if profileName == "" {
-			profileName = template.Name
-		}
-		resolvedName := resolveProfileNameConflict(existingProfiles.Profiles, profileName)
-		templateProfile.Name = resolvedName
-		templateProfile.TemplateID = lo.ToPtr(template.ID)
-		templateProfile.TemplateName = template.Name
-
-		existingProfiles.Profiles = append(existingProfiles.Profiles, *templateProfile)
 
 		updatedKey, err = client.APIKey.UpdateOneID(apiKeyID).
 			SetProfiles(existingProfiles).
@@ -274,6 +269,58 @@ func (s *APIKeyProfileTemplateService) LoadTemplate(ctx context.Context, templat
 	}
 
 	return updatedKey, nil
+}
+
+// appendTemplateProfile returns the key's profiles with a linked copy of the
+// template's profile appended, and the name that copy received.
+func appendTemplateProfile(current *objects.APIKeyProfiles, template *ent.APIKeyProfileTemplate) (*objects.APIKeyProfiles, string, error) {
+	templateProfile := template.Profile.Clone()
+	if templateProfile == nil {
+		return nil, "", fmt.Errorf("template has no profile")
+	}
+	if err := normalizeAndValidateProfileRoutingPolicy(templateProfile); err != nil {
+		return nil, "", err
+	}
+
+	profiles := current
+	if profiles == nil {
+		profiles = &objects.APIKeyProfiles{}
+	}
+
+	profileName := templateProfile.Name
+	if profileName == "" {
+		profileName = template.Name
+	}
+	resolvedName := resolveProfileNameConflict(profiles.Profiles, profileName)
+	templateProfile.Name = resolvedName
+	templateProfile.TemplateID = lo.ToPtr(template.ID)
+	templateProfile.TemplateName = template.Name
+
+	profiles.Profiles = append(profiles.Profiles, *templateProfile)
+
+	return profiles, resolvedName, nil
+}
+
+// clearOtherNewPersonalKeyTemplates keeps at most one template per project
+// applied to new personal keys.
+func clearOtherNewPersonalKeyTemplates(ctx context.Context, client *ent.Client, template *ent.APIKeyProfileTemplate) error {
+	if !template.ApplyToNewPersonalKeys {
+		return nil
+	}
+
+	_, err := client.APIKeyProfileTemplate.Update().
+		Where(
+			apikeyprofiletemplate.ProjectIDEQ(template.ProjectID),
+			apikeyprofiletemplate.IDNEQ(template.ID),
+			apikeyprofiletemplate.ApplyToNewPersonalKeysEQ(true),
+		).
+		SetApplyToNewPersonalKeys(false).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to clear other default templates: %w", err)
+	}
+
+	return nil
 }
 
 // CountLinkedProfiles returns how many API key profiles currently follow a

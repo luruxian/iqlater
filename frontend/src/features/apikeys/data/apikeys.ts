@@ -187,6 +187,35 @@ function buildUpdateApiKeyMutation(permissions: { canViewUsers: boolean }) {
   `;
 }
 
+function buildCreatePersonalApiKeyForUserMutation(permissions: { canViewUsers: boolean }) {
+  const userFields = permissions.canViewUsers
+    ? `
+        user {
+          id
+          firstName
+          lastName
+        }`
+    : '';
+
+  return `
+    mutation CreatePersonalAPIKeyForUser($input: CreatePersonalAPIKeyForUserInput!) {
+      createPersonalAPIKeyForUser(input: $input) {
+        key
+        apiKey {
+          id
+          createdAt
+          updatedAt${userFields}
+          name
+          type
+          status
+          scopes
+          allowedIps
+        }
+      }
+    }
+  `;
+}
+
 const UPDATE_APIKEY_STATUS_MUTATION = `
   mutation UpdateAPIKeyStatus($id: ID!, $status: APIKeyStatus!) {
     updateAPIKeyStatus(id: $id, status: $status) {
@@ -318,6 +347,7 @@ const APIKEY_PROFILE_TEMPLATES_QUERY = `
           description
           projectID
           linkedProfilesCount
+          applyToNewPersonalKeys
           profile {
             name
             modelMappings { from to }
@@ -354,6 +384,7 @@ const CREATE_APIKEY_PROFILE_TEMPLATE_MUTATION = `
       name
       description
       linkedProfilesCount
+      applyToNewPersonalKeys
       profile {
         name
       }
@@ -370,6 +401,7 @@ const UPDATE_APIKEY_PROFILE_TEMPLATE_MUTATION = `
       name
       description
       linkedProfilesCount
+      applyToNewPersonalKeys
       profile {
         name
       }
@@ -690,6 +722,38 @@ export function useCreateApiKey() {
     },
     onError: (error) => {
       handleError(error, { context: t('apikeys.dialogs.create.title') });
+    },
+  });
+}
+
+// Project owners issue a personal key owned by a member. The plaintext key is
+// only returned by this mutation, so callers must show it immediately.
+export function useCreatePersonalApiKeyForUser() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const permissions = useRequestPermissions();
+  const selectedProjectId = useSelectedProjectId();
+  const { handleError } = useErrorHandler();
+
+  return useMutation({
+    mutationFn: async (input: { userID: string; name: string }) => {
+      if (!selectedProjectId) {
+        throw new Error('No project selected');
+      }
+      const mutation = buildCreatePersonalApiKeyForUserMutation(permissions);
+      const headers = { 'X-Project-ID': selectedProjectId };
+      const data = await graphqlRequest<{
+        createPersonalAPIKeyForUser: { key: string; apiKey: Omit<ApiKey, 'key'> };
+      }>(mutation, { input: { ...input, projectID: selectedProjectId } }, headers);
+      const { key, apiKey } = data.createPersonalAPIKeyForUser;
+      return apiKeySchema.parse({ ...apiKey, key });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      toast.success(t('apikeys.messages.createSuccess'));
+    },
+    onError: (error) => {
+      handleError(error, { context: t('apikeys.dialogs.issueForMember.title') });
     },
   });
 }

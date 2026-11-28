@@ -74,6 +74,20 @@ func (_c *UsageLogCreate) SetNillableAPIKeyID(v *int) *UsageLogCreate {
 	return _c
 }
 
+// SetUserID sets the "user_id" field.
+func (_c *UsageLogCreate) SetUserID(v int) *UsageLogCreate {
+	_c.mutation.SetUserID(v)
+	return _c
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableUserID(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetUserID(*v)
+	}
+	return _c
+}
+
 // SetProjectID sets the "project_id" field.
 func (_c *UsageLogCreate) SetProjectID(v int) *UsageLogCreate {
 	_c.mutation.SetProjectID(v)
@@ -546,6 +560,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.APIKeyID(); ok {
 		_spec.SetField(usagelog.FieldAPIKeyID, field.TypeInt, value)
 		_node.APIKeyID = value
+	}
+	if value, ok := _c.mutation.UserID(); ok {
+		_spec.SetField(usagelog.FieldUserID, field.TypeInt, value)
+		_node.UserID = &value
 	}
 	if value, ok := _c.mutation.ModelID(); ok {
 		_spec.SetField(usagelog.FieldModelID, field.TypeString, value)
@@ -1083,6 +1101,9 @@ func (u *UsageLogUpsertOne) UpdateNewValues() *UsageLogUpsertOne {
 		}
 		if _, exists := u.create.mutation.APIKeyID(); exists {
 			s.SetIgnore(usagelog.FieldAPIKeyID)
+		}
+		if _, exists := u.create.mutation.UserID(); exists {
+			s.SetIgnore(usagelog.FieldUserID)
 		}
 		if _, exists := u.create.mutation.ProjectID(); exists {
 			s.SetIgnore(usagelog.FieldProjectID)
@@ -1713,6 +1734,9 @@ func (u *UsageLogUpsertBulk) UpdateNewValues() *UsageLogUpsertBulk {
 			}
 			if _, exists := b.mutation.APIKeyID(); exists {
 				s.SetIgnore(usagelog.FieldAPIKeyID)
+			}
+			if _, exists := b.mutation.UserID(); exists {
+				s.SetIgnore(usagelog.FieldUserID)
 			}
 			if _, exists := b.mutation.ProjectID(); exists {
 				s.SetIgnore(usagelog.FieldProjectID)

@@ -30,6 +30,8 @@ type UsageLog struct {
 	RequestID int `json:"request_id,omitempty"`
 	// APIKeyID holds the value of the "api_key_id" field.
 	APIKeyID int `json:"api_key_id,omitempty"`
+	// User the usage is attributed to: the API key creator, or the Playground user
+	UserID *int `json:"user_id,omitempty"`
 	// Project ID, default to 1 for backward compatibility
 	ProjectID int `json:"project_id,omitempty"`
 	// Channel ID used for the request
@@ -133,7 +135,7 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case usagelog.FieldTotalCost:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens:
+		case usagelog.FieldID, usagelog.FieldRequestID, usagelog.FieldAPIKeyID, usagelog.FieldUserID, usagelog.FieldProjectID, usagelog.FieldChannelID, usagelog.FieldPromptTokens, usagelog.FieldCompletionTokens, usagelog.FieldTotalTokens, usagelog.FieldPromptAudioTokens, usagelog.FieldPromptCachedTokens, usagelog.FieldPromptWriteCachedTokens, usagelog.FieldPromptWriteCachedTokens5m, usagelog.FieldPromptWriteCachedTokens1h, usagelog.FieldCompletionAudioTokens, usagelog.FieldCompletionReasoningTokens, usagelog.FieldCompletionAcceptedPredictionTokens, usagelog.FieldCompletionRejectedPredictionTokens:
 			values[i] = new(sql.NullInt64)
 		case usagelog.FieldModelID, usagelog.FieldSource, usagelog.FieldFormat, usagelog.FieldCostPriceReferenceID:
 			values[i] = new(sql.NullString)
@@ -183,6 +185,13 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field api_key_id", values[i])
 			} else if value.Valid {
 				_m.APIKeyID = int(value.Int64)
+			}
+		case usagelog.FieldUserID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_id", values[i])
+			} else if value.Valid {
+				_m.UserID = new(int)
+				*_m.UserID = int(value.Int64)
 			}
 		case usagelog.FieldProjectID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -369,6 +378,11 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("api_key_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.APIKeyID))
+	builder.WriteString(", ")
+	if v := _m.UserID; v != nil {
+		builder.WriteString("user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("project_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProjectID))

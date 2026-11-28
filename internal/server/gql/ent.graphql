@@ -130,6 +130,10 @@ type APIKeyProfileTemplate implements Node {
   """
   projectID: ID!
   profile: APIKeyProfile
+  """
+  Apply this template as the active profile of every new personal API key in the project
+  """
+  applyToNewPersonalKeys: Boolean!
   project: Project!
 }
 """
@@ -262,6 +266,11 @@ input APIKeyProfileTemplateWhereInput {
   projectIDNEQ: ID
   projectIDIn: [ID!]
   projectIDNotIn: [ID!]
+  """
+  apply_to_new_personal_keys field predicates
+  """
+  applyToNewPersonalKeys: Boolean
+  applyToNewPersonalKeysNEQ: Boolean
   """
   project edge predicates
   """
@@ -1592,6 +1601,10 @@ input CreateAPIKeyProfileTemplateInput {
   Template description
   """
   description: String
+  """
+  Apply this template as the active profile of every new personal API key in the project
+  """
+  applyToNewPersonalKeys: Boolean
   projectID: ID!
 }
 """
@@ -6008,6 +6021,10 @@ input UpdateAPIKeyProfileTemplateInput {
   Template description
   """
   description: String
+  """
+  Apply this template as the active profile of every new personal API key in the project
+  """
+  applyToNewPersonalKeys: Boolean
 }
 """
 UpdateChannelInput is used for update Channel object.

@@ -1349,22 +1349,23 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 // APIKeyProfileTemplateMutation represents an operation that mutates the APIKeyProfileTemplate nodes in the graph.
 type APIKeyProfileTemplateMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	created_at     *time.Time
-	updated_at     *time.Time
-	deleted_at     *int
-	adddeleted_at  *int
-	name           *string
-	description    *string
-	profile        **objects.APIKeyProfile
-	clearedFields  map[string]struct{}
-	project        *int
-	clearedproject bool
-	done           bool
-	oldValue       func(context.Context) (*APIKeyProfileTemplate, error)
-	predicates     []predicate.APIKeyProfileTemplate
+	op                         Op
+	typ                        string
+	id                         *int
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	deleted_at                 *int
+	adddeleted_at              *int
+	name                       *string
+	description                *string
+	profile                    **objects.APIKeyProfile
+	apply_to_new_personal_keys *bool
+	clearedFields              map[string]struct{}
+	project                    *int
+	clearedproject             bool
+	done                       bool
+	oldValue                   func(context.Context) (*APIKeyProfileTemplate, error)
+	predicates                 []predicate.APIKeyProfileTemplate
 }
 
 var _ ent.Mutation = (*APIKeyProfileTemplateMutation)(nil)
@@ -1750,6 +1751,42 @@ func (m *APIKeyProfileTemplateMutation) ResetProfile() {
 	delete(m.clearedFields, apikeyprofiletemplate.FieldProfile)
 }
 
+// SetApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field.
+func (m *APIKeyProfileTemplateMutation) SetApplyToNewPersonalKeys(b bool) {
+	m.apply_to_new_personal_keys = &b
+}
+
+// ApplyToNewPersonalKeys returns the value of the "apply_to_new_personal_keys" field in the mutation.
+func (m *APIKeyProfileTemplateMutation) ApplyToNewPersonalKeys() (r bool, exists bool) {
+	v := m.apply_to_new_personal_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApplyToNewPersonalKeys returns the old "apply_to_new_personal_keys" field's value of the APIKeyProfileTemplate entity.
+// If the APIKeyProfileTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyProfileTemplateMutation) OldApplyToNewPersonalKeys(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApplyToNewPersonalKeys is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApplyToNewPersonalKeys requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApplyToNewPersonalKeys: %w", err)
+	}
+	return oldValue.ApplyToNewPersonalKeys, nil
+}
+
+// ResetApplyToNewPersonalKeys resets all changes to the "apply_to_new_personal_keys" field.
+func (m *APIKeyProfileTemplateMutation) ResetApplyToNewPersonalKeys() {
+	m.apply_to_new_personal_keys = nil
+}
+
 // ClearProject clears the "project" edge to the Project entity.
 func (m *APIKeyProfileTemplateMutation) ClearProject() {
 	m.clearedproject = true
@@ -1811,7 +1848,7 @@ func (m *APIKeyProfileTemplateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyProfileTemplateMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, apikeyprofiletemplate.FieldCreatedAt)
 	}
@@ -1832,6 +1869,9 @@ func (m *APIKeyProfileTemplateMutation) Fields() []string {
 	}
 	if m.profile != nil {
 		fields = append(fields, apikeyprofiletemplate.FieldProfile)
+	}
+	if m.apply_to_new_personal_keys != nil {
+		fields = append(fields, apikeyprofiletemplate.FieldApplyToNewPersonalKeys)
 	}
 	return fields
 }
@@ -1855,6 +1895,8 @@ func (m *APIKeyProfileTemplateMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case apikeyprofiletemplate.FieldProfile:
 		return m.Profile()
+	case apikeyprofiletemplate.FieldApplyToNewPersonalKeys:
+		return m.ApplyToNewPersonalKeys()
 	}
 	return nil, false
 }
@@ -1878,6 +1920,8 @@ func (m *APIKeyProfileTemplateMutation) OldField(ctx context.Context, name strin
 		return m.OldProjectID(ctx)
 	case apikeyprofiletemplate.FieldProfile:
 		return m.OldProfile(ctx)
+	case apikeyprofiletemplate.FieldApplyToNewPersonalKeys:
+		return m.OldApplyToNewPersonalKeys(ctx)
 	}
 	return nil, fmt.Errorf("unknown APIKeyProfileTemplate field %s", name)
 }
@@ -1935,6 +1979,13 @@ func (m *APIKeyProfileTemplateMutation) SetField(name string, value ent.Value) e
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProfile(v)
+		return nil
+	case apikeyprofiletemplate.FieldApplyToNewPersonalKeys:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApplyToNewPersonalKeys(v)
 		return nil
 	}
 	return fmt.Errorf("unknown APIKeyProfileTemplate field %s", name)
@@ -2029,6 +2080,9 @@ func (m *APIKeyProfileTemplateMutation) ResetField(name string) error {
 		return nil
 	case apikeyprofiletemplate.FieldProfile:
 		m.ResetProfile()
+		return nil
+	case apikeyprofiletemplate.FieldApplyToNewPersonalKeys:
+		m.ResetApplyToNewPersonalKeys()
 		return nil
 	}
 	return fmt.Errorf("unknown APIKeyProfileTemplate field %s", name)
@@ -31252,6 +31306,8 @@ type UsageLogMutation struct {
 	updated_at                               *time.Time
 	api_key_id                               *int
 	addapi_key_id                            *int
+	user_id                                  *int
+	adduser_id                               *int
 	model_id                                 *string
 	prompt_tokens                            *int64
 	addprompt_tokens                         *int64
@@ -31570,6 +31626,76 @@ func (m *UsageLogMutation) ResetAPIKeyID() {
 	m.api_key_id = nil
 	m.addapi_key_id = nil
 	delete(m.clearedFields, usagelog.FieldAPIKeyID)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UsageLogMutation) SetUserID(i int) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UsageLogMutation) UserID() (r int, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldUserID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *UsageLogMutation) AddUserID(i int) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *UsageLogMutation) AddedUserID() (r int, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *UsageLogMutation) ClearUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	m.clearedFields[usagelog.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *UsageLogMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UsageLogMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	delete(m.clearedFields, usagelog.FieldUserID)
 }
 
 // SetProjectID sets the "project_id" field.
@@ -32862,7 +32988,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 25)
 	if m.created_at != nil {
 		fields = append(fields, usagelog.FieldCreatedAt)
 	}
@@ -32874,6 +33000,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.api_key_id != nil {
 		fields = append(fields, usagelog.FieldAPIKeyID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, usagelog.FieldUserID)
 	}
 	if m.project != nil {
 		fields = append(fields, usagelog.FieldProjectID)
@@ -32951,6 +33080,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestID()
 	case usagelog.FieldAPIKeyID:
 		return m.APIKeyID()
+	case usagelog.FieldUserID:
+		return m.UserID()
 	case usagelog.FieldProjectID:
 		return m.ProjectID()
 	case usagelog.FieldChannelID:
@@ -33008,6 +33139,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRequestID(ctx)
 	case usagelog.FieldAPIKeyID:
 		return m.OldAPIKeyID(ctx)
+	case usagelog.FieldUserID:
+		return m.OldUserID(ctx)
 	case usagelog.FieldProjectID:
 		return m.OldProjectID(ctx)
 	case usagelog.FieldChannelID:
@@ -33084,6 +33217,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAPIKeyID(v)
+		return nil
+	case usagelog.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
 		return nil
 	case usagelog.FieldProjectID:
 		v, ok := value.(int)
@@ -33236,6 +33376,9 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addapi_key_id != nil {
 		fields = append(fields, usagelog.FieldAPIKeyID)
 	}
+	if m.adduser_id != nil {
+		fields = append(fields, usagelog.FieldUserID)
+	}
 	if m.addprompt_tokens != nil {
 		fields = append(fields, usagelog.FieldPromptTokens)
 	}
@@ -33285,6 +33428,8 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case usagelog.FieldAPIKeyID:
 		return m.AddedAPIKeyID()
+	case usagelog.FieldUserID:
+		return m.AddedUserID()
 	case usagelog.FieldPromptTokens:
 		return m.AddedPromptTokens()
 	case usagelog.FieldCompletionTokens:
@@ -33326,6 +33471,13 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAPIKeyID(v)
+		return nil
+	case usagelog.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
 		return nil
 	case usagelog.FieldPromptTokens:
 		v, ok := value.(int64)
@@ -33429,6 +33581,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldAPIKeyID) {
 		fields = append(fields, usagelog.FieldAPIKeyID)
 	}
+	if m.FieldCleared(usagelog.FieldUserID) {
+		fields = append(fields, usagelog.FieldUserID)
+	}
 	if m.FieldCleared(usagelog.FieldChannelID) {
 		fields = append(fields, usagelog.FieldChannelID)
 	}
@@ -33484,6 +33639,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 	switch name {
 	case usagelog.FieldAPIKeyID:
 		m.ClearAPIKeyID()
+		return nil
+	case usagelog.FieldUserID:
+		m.ClearUserID()
 		return nil
 	case usagelog.FieldChannelID:
 		m.ClearChannelID()
@@ -33543,6 +33701,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldAPIKeyID:
 		m.ResetAPIKeyID()
+		return nil
+	case usagelog.FieldUserID:
+		m.ResetUserID()
 		return nil
 	case usagelog.FieldProjectID:
 		m.ResetProjectID()

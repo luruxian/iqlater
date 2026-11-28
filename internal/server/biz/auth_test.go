@@ -420,6 +420,10 @@ func TestAuthService_AuthenticateAPIKey(t *testing.T) {
 	apiKeyString, err := GenerateAPIKey("ah")
 	require.NoError(t, err)
 
+	// A key only authenticates while its creator belongs to the key's project.
+	_, err = client.UserProject.Create().SetUserID(testUser.ID).SetProjectID(testProject.ID).Save(ctx)
+	require.NoError(t, err)
+
 	// Create API key in database
 	apiKey, err := client.APIKey.Create().
 		SetKey(apiKeyString).
@@ -669,6 +673,10 @@ func TestAuthService_CacheExpiration(t *testing.T) {
 	).Save(
 		ctx,
 	)
+	require.NoError(t, err)
+
+	// A key only authenticates while its creator belongs to the key's project.
+	_, err = client.UserProject.Create().SetUserID(testUser.ID).SetProjectID(testProject.ID).Save(ctx)
 	require.NoError(t, err)
 
 	// Generate API key

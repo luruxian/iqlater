@@ -158,8 +158,11 @@ export function usePermissions() {
       canCreate: hasScope('write_api_keys'),
       canEdit: hasScope('write_api_keys'),
       canDelete: hasScope('write_api_keys'),
+      // API key limits (profiles and profile templates) are reserved for
+      // project owners, system owners and system-level write_api_keys holders.
+      canManageLimits: isProjectOwner || hasSystemScope('write_api_keys'),
     }),
-    [hasScope]
+    [hasScope, hasSystemScope, isProjectOwner]
   );
 
   // Common permission checks for model operations

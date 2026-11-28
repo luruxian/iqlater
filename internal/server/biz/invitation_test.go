@@ -187,3 +187,46 @@ func TestGenerateInvitationToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, bytes, 6)
 }
+
+func TestInvitationService_ProjectOwnerInvitesEmployee(t *testing.T) {
+	service, client, ctx := setupInvitationService(t)
+	defer client.Close()
+
+	customer, err := client.Project.Create().SetName("customer").Save(ctx)
+	require.NoError(t, err)
+	otherCustomer, err := client.Project.Create().SetName("other-customer").Save(ctx)
+	require.NoError(t, err)
+	projectRole := createInvitationRole(t, client, ctx, customer.ID)
+
+	newOwner := func(email string, projectID int) *ent.User {
+		u, err := client.User.Create().SetEmail(email).SetPassword("password").SetStatus(user.StatusActivated).Save(ctx)
+		require.NoError(t, err)
+		_, err = client.UserProject.Create().SetUserID(u.ID).SetProjectID(projectID).SetIsOwner(true).Save(ctx)
+		require.NoError(t, err)
+		u, err = client.User.Query().Where(user.IDEQ(u.ID)).WithRoles().WithProjectUsers().Only(ctx)
+		require.NoError(t, err)
+
+		return u
+	}
+	asUser := func(u *ent.User) context.Context {
+		return contexts.WithUser(authz.NewUserContext(ent.NewContext(context.Background(), client), u.ID), u)
+	}
+
+	owner := newOwner("owner@customer.test", customer.ID)
+	created, err := service.CreateInvitation(asUser(owner), customer.ID, projectRole.ID, nil, 1)
+	require.NoError(t, err)
+
+	registered, err := service.RegisterInvitation(ctx, created.Token, "employee@customer.test", "password", "E", "Mployee")
+	require.NoError(t, err)
+	exists, err := client.UserProject.Query().Where(
+		userproject.UserIDEQ(registered.ID),
+		userproject.ProjectIDEQ(customer.ID),
+	).Exist(ctx)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	// An owner of another customer cannot invite into this project.
+	otherOwner := newOwner("owner@other.test", otherCustomer.ID)
+	_, err = service.CreateInvitation(asUser(otherOwner), customer.ID, projectRole.ID, nil, 1)
+	require.Error(t, err)
+}

@@ -97,6 +97,20 @@ func (_u *APIKeyProfileTemplateUpdate) ClearProfile() *APIKeyProfileTemplateUpda
 	return _u
 }
 
+// SetApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field.
+func (_u *APIKeyProfileTemplateUpdate) SetApplyToNewPersonalKeys(v bool) *APIKeyProfileTemplateUpdate {
+	_u.mutation.SetApplyToNewPersonalKeys(v)
+	return _u
+}
+
+// SetNillableApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field if the given value is not nil.
+func (_u *APIKeyProfileTemplateUpdate) SetNillableApplyToNewPersonalKeys(v *bool) *APIKeyProfileTemplateUpdate {
+	if v != nil {
+		_u.SetApplyToNewPersonalKeys(*v)
+	}
+	return _u
+}
+
 // Mutation returns the APIKeyProfileTemplateMutation object of the builder.
 func (_u *APIKeyProfileTemplateUpdate) Mutation() *APIKeyProfileTemplateMutation {
 	return _u.mutation
@@ -191,6 +205,9 @@ func (_u *APIKeyProfileTemplateUpdate) sqlSave(ctx context.Context) (_node int, 
 	if _u.mutation.ProfileCleared() {
 		_spec.ClearField(apikeyprofiletemplate.FieldProfile, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.ApplyToNewPersonalKeys(); ok {
+		_spec.SetField(apikeyprofiletemplate.FieldApplyToNewPersonalKeys, field.TypeBool, value)
+	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -277,6 +294,20 @@ func (_u *APIKeyProfileTemplateUpdateOne) SetProfile(v *objects.APIKeyProfile) *
 // ClearProfile clears the value of the "profile" field.
 func (_u *APIKeyProfileTemplateUpdateOne) ClearProfile() *APIKeyProfileTemplateUpdateOne {
 	_u.mutation.ClearProfile()
+	return _u
+}
+
+// SetApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field.
+func (_u *APIKeyProfileTemplateUpdateOne) SetApplyToNewPersonalKeys(v bool) *APIKeyProfileTemplateUpdateOne {
+	_u.mutation.SetApplyToNewPersonalKeys(v)
+	return _u
+}
+
+// SetNillableApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field if the given value is not nil.
+func (_u *APIKeyProfileTemplateUpdateOne) SetNillableApplyToNewPersonalKeys(v *bool) *APIKeyProfileTemplateUpdateOne {
+	if v != nil {
+		_u.SetApplyToNewPersonalKeys(*v)
+	}
 	return _u
 }
 
@@ -403,6 +434,9 @@ func (_u *APIKeyProfileTemplateUpdateOne) sqlSave(ctx context.Context) (_node *A
 	}
 	if _u.mutation.ProfileCleared() {
 		_spec.ClearField(apikeyprofiletemplate.FieldProfile, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ApplyToNewPersonalKeys(); ok {
+		_spec.SetField(apikeyprofiletemplate.FieldApplyToNewPersonalKeys, field.TypeBool, value)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &APIKeyProfileTemplate{config: _u.config}

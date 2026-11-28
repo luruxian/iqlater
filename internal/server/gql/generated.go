@@ -164,15 +164,16 @@ type ComplexityRoot struct {
 	}
 
 	APIKeyProfileTemplate struct {
-		CreatedAt           func(childComplexity int) int
-		Description         func(childComplexity int) int
-		ID                  func(childComplexity int) int
-		LinkedProfilesCount func(childComplexity int) int
-		Name                func(childComplexity int) int
-		Profile             func(childComplexity int) int
-		Project             func(childComplexity int) int
-		ProjectID           func(childComplexity int) int
-		UpdatedAt           func(childComplexity int) int
+		ApplyToNewPersonalKeys func(childComplexity int) int
+		CreatedAt              func(childComplexity int) int
+		Description            func(childComplexity int) int
+		ID                     func(childComplexity int) int
+		LinkedProfilesCount    func(childComplexity int) int
+		Name                   func(childComplexity int) int
+		Profile                func(childComplexity int) int
+		Project                func(childComplexity int) int
+		ProjectID              func(childComplexity int) int
+		UpdatedAt              func(childComplexity int) int
 	}
 
 	APIKeyProfileTemplateConnection struct {
@@ -964,6 +965,11 @@ type ComplexityRoot struct {
 		User    func(childComplexity int) int
 	}
 
+	IssuedAPIKeyPayload struct {
+		APIKey func(childComplexity int) int
+		Key    func(childComplexity int) int
+	}
+
 	Model struct {
 		AssociatedChannelCount func(childComplexity int) int
 		CreatedAt              func(childComplexity int) int
@@ -1160,6 +1166,7 @@ type ComplexityRoot struct {
 		CreateChannelOverrideTemplate         func(childComplexity int, input ent.CreateChannelOverrideTemplateInput) int
 		CreateDataStorage                     func(childComplexity int, input ent.CreateDataStorageInput) int
 		CreateModel                           func(childComplexity int, input ent.CreateModelInput, editedPrices []*biz.ManualPriceEdit) int
+		CreatePersonalAPIKeyForUser           func(childComplexity int, input CreatePersonalAPIKeyForUserInput) int
 		CreatePluginUISession                 func(childComplexity int, pluginID string, entry string) int
 		CreateProject                         func(childComplexity int, input ent.CreateProjectInput) int
 		CreatePrompt                          func(childComplexity int, input ent.CreatePromptInput) int
@@ -2707,6 +2714,7 @@ type MutationResolver interface {
 	DeletePluginKv(ctx context.Context, namespace *string, key string) (bool, error)
 	PluginTableOperation(ctx context.Context, table string, operation PluginTableCommand, args []objects.JSONRawMessage) (objects.JSONRawMessage, error)
 	CreatePluginUISession(ctx context.Context, pluginID string, entry string) (*plugin.UISession, error)
+	CreatePersonalAPIKeyForUser(ctx context.Context, input CreatePersonalAPIKeyForUserInput) (*IssuedAPIKeyPayload, error)
 }
 type OIDCIdentityResolver interface {
 	ID(ctx context.Context, obj *ent.OIDCIdentity) (*objects.GUID, error)
@@ -3209,6 +3217,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.APIKeyProfileQuotaUsage.Window(childComplexity), true
 
+	case "APIKeyProfileTemplate.applyToNewPersonalKeys":
+		if e.complexity.APIKeyProfileTemplate.ApplyToNewPersonalKeys == nil {
+			break
+		}
+
+		return e.complexity.APIKeyProfileTemplate.ApplyToNewPersonalKeys(childComplexity), true
 	case "APIKeyProfileTemplate.createdAt":
 		if e.complexity.APIKeyProfileTemplate.CreatedAt == nil {
 			break
@@ -6187,6 +6201,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InitializeSystemPayload.User(childComplexity), true
 
+	case "IssuedAPIKeyPayload.apiKey":
+		if e.complexity.IssuedAPIKeyPayload.APIKey == nil {
+			break
+		}
+
+		return e.complexity.IssuedAPIKeyPayload.APIKey(childComplexity), true
+	case "IssuedAPIKeyPayload.key":
+		if e.complexity.IssuedAPIKeyPayload.Key == nil {
+			break
+		}
+
+		return e.complexity.IssuedAPIKeyPayload.Key(childComplexity), true
+
 	case "Model.associatedChannelCount":
 		if e.complexity.Model.AssociatedChannelCount == nil {
 			break
@@ -7220,6 +7247,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateModel(childComplexity, args["input"].(ent.CreateModelInput), args["editedPrices"].([]*biz.ManualPriceEdit)), true
+	case "Mutation.createPersonalAPIKeyForUser":
+		if e.complexity.Mutation.CreatePersonalAPIKeyForUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createPersonalAPIKeyForUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreatePersonalAPIKeyForUser(childComplexity, args["input"].(CreatePersonalAPIKeyForUserInput)), true
 	case "Mutation.createPluginUISession":
 		if e.complexity.Mutation.CreatePluginUISession == nil {
 			break
@@ -13657,6 +13695,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateDataStorageInput,
 		ec.unmarshalInputCreateModelInput,
 		ec.unmarshalInputCreateOIDCIdentityInput,
+		ec.unmarshalInputCreatePersonalAPIKeyForUserInput,
 		ec.unmarshalInputCreateProjectInput,
 		ec.unmarshalInputCreatePromptInput,
 		ec.unmarshalInputCreatePromptProtectionRuleInput,
@@ -13909,7 +13948,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "analytics.graphql" "plugin.graphql"
+//go:embed "axonhub.graphql" "ent.graphql" "dashboard.graphql" "scopes.graphql" "me.graphql" "system.graphql" "filter.graphql" "model.graphql" "backup.graphql" "channel_probe.graphql" "prompt.graphql" "prompt_protection_rule.graphql" "price.graphql" "cost.graphql" "analytics.graphql" "plugin.graphql" "project_members.graphql"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -13937,6 +13976,7 @@ var sources = []*ast.Source{
 	{Name: "cost.graphql", Input: sourceData("cost.graphql"), BuiltIn: false},
 	{Name: "analytics.graphql", Input: sourceData("analytics.graphql"), BuiltIn: false},
 	{Name: "plugin.graphql", Input: sourceData("plugin.graphql"), BuiltIn: false},
+	{Name: "project_members.graphql", Input: sourceData("project_members.graphql"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -14681,6 +14721,17 @@ func (ec *executionContext) field_Mutation_createModel_args(ctx context.Context,
 		return nil, err
 	}
 	args["editedPrices"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createPersonalAPIKeyForUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreatePersonalAPIKeyForUserInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐCreatePersonalAPIKeyForUserInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -19456,6 +19507,35 @@ func (ec *executionContext) fieldContext_APIKeyProfileTemplate_profile(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _APIKeyProfileTemplate_applyToNewPersonalKeys(ctx context.Context, field graphql.CollectedField, obj *ent.APIKeyProfileTemplate) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_APIKeyProfileTemplate_applyToNewPersonalKeys,
+		func(ctx context.Context) (any, error) {
+			return obj.ApplyToNewPersonalKeys, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_APIKeyProfileTemplate_applyToNewPersonalKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "APIKeyProfileTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _APIKeyProfileTemplate_project(ctx context.Context, field graphql.CollectedField, obj *ent.APIKeyProfileTemplate) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19691,6 +19771,8 @@ func (ec *executionContext) fieldContext_APIKeyProfileTemplateEdge_node(_ contex
 				return ec.fieldContext_APIKeyProfileTemplate_projectID(ctx, field)
 			case "profile":
 				return ec.fieldContext_APIKeyProfileTemplate_profile(ctx, field)
+			case "applyToNewPersonalKeys":
+				return ec.fieldContext_APIKeyProfileTemplate_applyToNewPersonalKeys(ctx, field)
 			case "project":
 				return ec.fieldContext_APIKeyProfileTemplate_project(ctx, field)
 			case "linkedProfilesCount":
@@ -34743,6 +34825,96 @@ func (ec *executionContext) fieldContext_InitializeSystemPayload_token(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _IssuedAPIKeyPayload_apiKey(ctx context.Context, field graphql.CollectedField, obj *IssuedAPIKeyPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IssuedAPIKeyPayload_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalNAPIKey2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐAPIKey,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IssuedAPIKeyPayload_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IssuedAPIKeyPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_APIKey_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_APIKey_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_APIKey_updatedAt(ctx, field)
+			case "userID":
+				return ec.fieldContext_APIKey_userID(ctx, field)
+			case "projectID":
+				return ec.fieldContext_APIKey_projectID(ctx, field)
+			case "key":
+				return ec.fieldContext_APIKey_key(ctx, field)
+			case "name":
+				return ec.fieldContext_APIKey_name(ctx, field)
+			case "type":
+				return ec.fieldContext_APIKey_type(ctx, field)
+			case "status":
+				return ec.fieldContext_APIKey_status(ctx, field)
+			case "scopes":
+				return ec.fieldContext_APIKey_scopes(ctx, field)
+			case "profiles":
+				return ec.fieldContext_APIKey_profiles(ctx, field)
+			case "allowedIps":
+				return ec.fieldContext_APIKey_allowedIps(ctx, field)
+			case "user":
+				return ec.fieldContext_APIKey_user(ctx, field)
+			case "project":
+				return ec.fieldContext_APIKey_project(ctx, field)
+			case "requests":
+				return ec.fieldContext_APIKey_requests(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type APIKey", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _IssuedAPIKeyPayload_key(ctx context.Context, field graphql.CollectedField, obj *IssuedAPIKeyPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_IssuedAPIKeyPayload_key,
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_IssuedAPIKeyPayload_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "IssuedAPIKeyPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Model_id(ctx context.Context, field graphql.CollectedField, obj *ent.Model) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -41235,6 +41407,8 @@ func (ec *executionContext) fieldContext_Mutation_createApiKeyProfileTemplate(ct
 				return ec.fieldContext_APIKeyProfileTemplate_projectID(ctx, field)
 			case "profile":
 				return ec.fieldContext_APIKeyProfileTemplate_profile(ctx, field)
+			case "applyToNewPersonalKeys":
+				return ec.fieldContext_APIKeyProfileTemplate_applyToNewPersonalKeys(ctx, field)
 			case "project":
 				return ec.fieldContext_APIKeyProfileTemplate_project(ctx, field)
 			case "linkedProfilesCount":
@@ -41296,6 +41470,8 @@ func (ec *executionContext) fieldContext_Mutation_updateApiKeyProfileTemplate(ct
 				return ec.fieldContext_APIKeyProfileTemplate_projectID(ctx, field)
 			case "profile":
 				return ec.fieldContext_APIKeyProfileTemplate_profile(ctx, field)
+			case "applyToNewPersonalKeys":
+				return ec.fieldContext_APIKeyProfileTemplate_applyToNewPersonalKeys(ctx, field)
 			case "project":
 				return ec.fieldContext_APIKeyProfileTemplate_project(ctx, field)
 			case "linkedProfilesCount":
@@ -41357,6 +41533,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteApiKeyProfileTemplate(ct
 				return ec.fieldContext_APIKeyProfileTemplate_projectID(ctx, field)
 			case "profile":
 				return ec.fieldContext_APIKeyProfileTemplate_profile(ctx, field)
+			case "applyToNewPersonalKeys":
+				return ec.fieldContext_APIKeyProfileTemplate_applyToNewPersonalKeys(ctx, field)
 			case "project":
 				return ec.fieldContext_APIKeyProfileTemplate_project(ctx, field)
 			case "linkedProfilesCount":
@@ -45238,6 +45416,53 @@ func (ec *executionContext) fieldContext_Mutation_createPluginUISession(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createPluginUISession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createPersonalAPIKeyForUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createPersonalAPIKeyForUser,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().CreatePersonalAPIKeyForUser(ctx, fc.Args["input"].(CreatePersonalAPIKeyForUserInput))
+		},
+		nil,
+		ec.marshalNIssuedAPIKeyPayload2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIssuedAPIKeyPayload,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createPersonalAPIKeyForUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "apiKey":
+				return ec.fieldContext_IssuedAPIKeyPayload_apiKey(ctx, field)
+			case "key":
+				return ec.fieldContext_IssuedAPIKeyPayload_key(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type IssuedAPIKeyPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createPersonalAPIKeyForUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -74386,7 +74611,7 @@ func (ec *executionContext) unmarshalInputAPIKeyProfileTemplateWhereInput(ctx co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "description", "descriptionNEQ", "descriptionIn", "descriptionNotIn", "descriptionGT", "descriptionGTE", "descriptionLT", "descriptionLTE", "descriptionContains", "descriptionHasPrefix", "descriptionHasSuffix", "descriptionEqualFold", "descriptionContainsFold", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "hasProject", "hasProjectWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "description", "descriptionNEQ", "descriptionIn", "descriptionNotIn", "descriptionGT", "descriptionGTE", "descriptionLT", "descriptionLTE", "descriptionContains", "descriptionHasPrefix", "descriptionHasSuffix", "descriptionEqualFold", "descriptionContainsFold", "projectID", "projectIDNEQ", "projectIDIn", "projectIDNotIn", "applyToNewPersonalKeys", "applyToNewPersonalKeysNEQ", "hasProject", "hasProjectWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -74840,6 +75065,20 @@ func (ec *executionContext) unmarshalInputAPIKeyProfileTemplateWhereInput(ctx co
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
 			it.ProjectIDNotIn = converted
+		case "applyToNewPersonalKeys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("applyToNewPersonalKeys"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ApplyToNewPersonalKeys = data
+		case "applyToNewPersonalKeysNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("applyToNewPersonalKeysNEQ"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ApplyToNewPersonalKeysNEQ = data
 		case "hasProject":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hasProject"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -81128,7 +81367,7 @@ func (ec *executionContext) unmarshalInputCreateAPIKeyProfileTemplateInput(ctx c
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "projectID"}
+	fieldsInOrder := [...]string{"name", "description", "applyToNewPersonalKeys", "projectID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -81149,6 +81388,13 @@ func (ec *executionContext) unmarshalInputCreateAPIKeyProfileTemplateInput(ctx c
 				return it, err
 			}
 			it.Description = data
+		case "applyToNewPersonalKeys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("applyToNewPersonalKeys"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ApplyToNewPersonalKeys = data
 		case "projectID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
 			data, err := ec.unmarshalNID2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
@@ -81526,6 +81772,47 @@ func (ec *executionContext) unmarshalInputCreateOIDCIdentityInput(ctx context.Co
 				return it, err
 			}
 			it.LastLoginAt = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCreatePersonalAPIKeyForUserInput(ctx context.Context, obj any) (CreatePersonalAPIKeyForUserInput, error) {
+	var it CreatePersonalAPIKeyForUserInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectID", "userID", "name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectID"))
+			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "userID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+			data, err := ec.unmarshalNID2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐGUID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UserID = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
 		}
 	}
 
@@ -95150,7 +95437,7 @@ func (ec *executionContext) unmarshalInputUpdateAPIKeyProfileTemplateInput(ctx c
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description"}
+	fieldsInOrder := [...]string{"name", "description", "applyToNewPersonalKeys"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -95171,6 +95458,13 @@ func (ec *executionContext) unmarshalInputUpdateAPIKeyProfileTemplateInput(ctx c
 				return it, err
 			}
 			it.Description = data
+		case "applyToNewPersonalKeys":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("applyToNewPersonalKeys"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ApplyToNewPersonalKeys = data
 		}
 	}
 
@@ -102253,6 +102547,11 @@ func (ec *executionContext) _APIKeyProfileTemplate(ctx context.Context, sel ast.
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "profile":
 			out.Values[i] = ec._APIKeyProfileTemplate_profile(ctx, field, obj)
+		case "applyToNewPersonalKeys":
+			out.Values[i] = ec._APIKeyProfileTemplate_applyToNewPersonalKeys(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "project":
 			field := field
 
@@ -109038,6 +109337,50 @@ func (ec *executionContext) _InitializeSystemPayload(ctx context.Context, sel as
 	return out
 }
 
+var issuedAPIKeyPayloadImplementors = []string{"IssuedAPIKeyPayload"}
+
+func (ec *executionContext) _IssuedAPIKeyPayload(ctx context.Context, sel ast.SelectionSet, obj *IssuedAPIKeyPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, issuedAPIKeyPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("IssuedAPIKeyPayload")
+		case "apiKey":
+			out.Values[i] = ec._IssuedAPIKeyPayload_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "key":
+			out.Values[i] = ec._IssuedAPIKeyPayload_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var modelImplementors = []string{"Model", "Node"}
 
 func (ec *executionContext) _Model(ctx context.Context, sel ast.SelectionSet, obj *ent.Model) graphql.Marshaler {
@@ -111279,6 +111622,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createPluginUISession":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createPluginUISession(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createPersonalAPIKeyForUser":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createPersonalAPIKeyForUser(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -127206,6 +127556,11 @@ func (ec *executionContext) unmarshalNCreateModelInput2ᚖgithubᚗcomᚋlooplj�
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCreatePersonalAPIKeyForUserInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐCreatePersonalAPIKeyForUserInput(ctx context.Context, v any) (CreatePersonalAPIKeyForUserInput, error) {
+	res, err := ec.unmarshalInputCreatePersonalAPIKeyForUserInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNCreateProjectInput2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐCreateProjectInput(ctx context.Context, v any) (ent.CreateProjectInput, error) {
 	res, err := ec.unmarshalInputCreateProjectInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -128035,6 +128390,20 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNIssuedAPIKeyPayload2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIssuedAPIKeyPayload(ctx context.Context, sel ast.SelectionSet, v IssuedAPIKeyPayload) graphql.Marshaler {
+	return ec._IssuedAPIKeyPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNIssuedAPIKeyPayload2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋserverᚋgqlᚐIssuedAPIKeyPayload(ctx context.Context, sel ast.SelectionSet, v *IssuedAPIKeyPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._IssuedAPIKeyPayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNJSONRawMessage2githubᚗcomᚋloopljᚋaxonhubᚋinternalᚋobjectsᚐJSONRawMessage(ctx context.Context, v any) (objects.JSONRawMessage, error) {

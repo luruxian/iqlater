@@ -913,7 +913,7 @@ func (r *queryResolver) AllChannelSummarys(ctx context.Context, includeArchived 
 
 	projectProfile := proj.GetActiveProfile()
 
-	return filterChannelsByProjectProfile(channels, projectProfile), nil
+	return biz.FilterChannelsByProjectProfile(channels, projectProfile), nil
 }
 
 // AllChannelTags is the resolver for the allChannelTags field.
@@ -935,7 +935,7 @@ func (r *queryResolver) AllChannelTags(ctx context.Context) ([]string, error) {
 			return nil, fmt.Errorf("failed to get project: %w", err)
 		}
 
-		channels = filterChannelsByProjectProfile(channels, proj.GetActiveProfile())
+		channels = biz.FilterChannelsByProjectProfile(channels, proj.GetActiveProfile())
 	}
 
 	tags := lo.Reduce(channels, func(acc []string, ch *ent.Channel, _ int) []string {

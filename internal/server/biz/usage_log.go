@@ -126,6 +126,8 @@ type CreateUsageLogParams struct {
 	Source        usagelog.Source
 	Format        string
 	APIKeyID      *int
+	// UserID is the member the usage is attributed to; it defaults to the context API key's creator.
+	UserID *int
 }
 
 // CreateUsageLog creates a new usage log record from LLM response usage data.
@@ -151,6 +153,12 @@ func (s *UsageLogService) CreateUsageLog(ctx context.Context, params CreateUsage
 		mut = mut.SetAPIKeyID(*params.APIKeyID)
 	} else if ctxAPIKey, ok := contexts.GetAPIKey(ctx); ok && ctxAPIKey != nil {
 		mut = mut.SetAPIKeyID(ctxAPIKey.ID)
+	}
+
+	if params.UserID != nil {
+		mut = mut.SetUserID(*params.UserID)
+	} else if ctxAPIKey, ok := contexts.GetAPIKey(ctx); ok && ctxAPIKey != nil && ctxAPIKey.UserID != 0 {
+		mut = mut.SetUserID(ctxAPIKey.UserID)
 	}
 
 	// Set prompt tokens details if available
@@ -232,6 +240,7 @@ func (s *UsageLogService) CreateUsageLogFromRequest(
 		Source:        usagelog.Source(request.Source),
 		Format:        request.Format,
 		APIKeyID:      lo.ToPtr(request.APIKeyID),
+		UserID:        request.UserID,
 	})
 }
 

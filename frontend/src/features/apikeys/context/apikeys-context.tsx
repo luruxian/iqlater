@@ -13,13 +13,17 @@ type ApiKeyDialogType =
   | 'bulkDisable'
   | 'bulkArchive'
   | 'bulkEnable'
-  | 'rotate';
+  | 'rotate'
+  | 'issueForMember';
 
 interface ApiKeysContextType {
   selectedApiKey: ApiKey | null;
   setSelectedApiKey: (apiKey: ApiKey | null) => void;
   selectedApiKeys: ApiKey[];
   setSelectedApiKeys: (apiKeys: ApiKey[]) => void;
+  // True while the view dialog shows a plaintext key that the server returns only once.
+  oneTimeKeyNotice: boolean;
+  setOneTimeKeyNotice: (value: boolean) => void;
   isDialogOpen: Record<ApiKeyDialogType, boolean>;
   openDialog: (type: ApiKeyDialogType, apiKey?: ApiKey | ApiKey[]) => void;
   closeDialog: (type?: ApiKeyDialogType) => void;
@@ -32,6 +36,7 @@ const ApiKeysContext = createContext<ApiKeysContextType | undefined>(undefined);
 export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null);
   const [selectedApiKeys, setSelectedApiKeys] = useState<ApiKey[]>([]);
+  const [oneTimeKeyNotice, setOneTimeKeyNotice] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState<Record<ApiKeyDialogType, boolean>>({
     create: false,
     edit: false,
@@ -45,6 +50,7 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
     bulkArchive: false,
     bulkEnable: false,
     rotate: false,
+    issueForMember: false,
   });
   const resetRowSelectionRef = useRef<() => void>(() => {});
 
@@ -65,6 +71,9 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
       if (type === 'delete' || type === 'edit' || type === 'view' || type === 'archive' || type === 'status' || type === 'profiles' || type === 'rotate') {
         setSelectedApiKey(null);
       }
+      if (type === 'view') {
+        setOneTimeKeyNotice(false);
+      }
       if (type === 'bulkDisable' || type === 'bulkArchive' || type === 'bulkEnable') {
         setSelectedApiKeys([]);
       }
@@ -83,9 +92,11 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
         bulkArchive: false,
         bulkEnable: false,
         rotate: false,
+        issueForMember: false,
       });
       setSelectedApiKey(null);
       setSelectedApiKeys([]);
+      setOneTimeKeyNotice(false);
     }
   };
 
@@ -96,6 +107,8 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
         setSelectedApiKey,
         selectedApiKeys,
         setSelectedApiKeys,
+        oneTimeKeyNotice,
+        setOneTimeKeyNotice,
         isDialogOpen,
         openDialog,
         closeDialog,

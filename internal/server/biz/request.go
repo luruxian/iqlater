@@ -484,10 +484,13 @@ func (s *RequestService) CreateRequest(
 			mut = mut.SetTraceID(traceID)
 		}
 
+		// Attribute the request to a member: the Playground user, or the API key's creator.
 		if contexts.GetSourceOrDefault(ctx, request.SourceAPI) == request.SourcePlayground {
 			if user, ok := contexts.GetUser(ctx); ok && user != nil {
 				mut = mut.SetUserID(user.ID)
 			}
+		} else if apiKey, ok := contexts.GetAPIKey(ctx); ok && apiKey != nil && apiKey.UserID != 0 {
+			mut = mut.SetUserID(apiKey.UserID)
 		}
 
 		// Create request

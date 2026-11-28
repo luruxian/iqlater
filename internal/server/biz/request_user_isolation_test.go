@@ -51,4 +51,15 @@ func TestRequestServiceCreateRequestAssignsPlaygroundUser(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Nil(t, apiRequest.UserID)
+
+	// API traffic is attributed to the key's creator, not to a signed-in user.
+	keyRequest, err := requestService.CreateRequest(
+		contexts.WithAPIKey(contexts.WithSource(ctx, request.SourceAPI), &ent.APIKey{ID: 7, UserID: 99, ProjectID: 100}),
+		&llm.Request{Model: "api-model"},
+		&httpclient.Request{JSONBody: []byte(`{"model":"api-model"}`)},
+		llm.APIFormatOpenAIChatCompletion,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, keyRequest.UserID)
+	require.Equal(t, 99, *keyRequest.UserID)
 }

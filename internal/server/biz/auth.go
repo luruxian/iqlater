@@ -301,7 +301,42 @@ func (s *AuthService) AuthenticateAPIKey(ctx context.Context, key string) (*ent.
 		return nil, fmt.Errorf("noauth api key is only available when api auth is disabled: %w", ErrInvalidAPIKey)
 	}
 
+	if err := s.checkAPIKeyCreator(ctx, apiKey); err != nil {
+		return nil, err
+	}
+
 	return apiKey, nil
+}
+
+// checkAPIKeyCreator rejects a key whose creator is no longer an active member of
+// the key's project, so deactivating or removing an employee revokes every key they made.
+func (s *AuthService) checkAPIKeyCreator(ctx context.Context, apiKey *ent.APIKey) error {
+	if apiKey.UserID == 0 || s.UserService == nil {
+		return nil
+	}
+
+	creator, err := authz.RunWithSystemBypass(ctx, "auth-lookup", func(bypassCtx context.Context) (*ent.User, error) {
+		return s.UserService.GetUserByID(bypassCtx, apiKey.UserID)
+	})
+	if err != nil {
+		return fmt.Errorf("api key creator not found: %w", ErrInvalidAPIKey)
+	}
+
+	if creator.Status != user.StatusActivated {
+		return fmt.Errorf("api key creator not activated: %w", ErrInvalidAPIKey)
+	}
+
+	if creator.IsOwner {
+		return nil
+	}
+
+	for _, membership := range creator.Edges.ProjectUsers {
+		if membership.ProjectID == apiKey.ProjectID {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("api key creator is not a member of the key's project: %w", ErrInvalidAPIKey)
 }
 
 func (s *AuthService) AuthenticateNoAuth(ctx context.Context) (*ent.APIKey, error) {

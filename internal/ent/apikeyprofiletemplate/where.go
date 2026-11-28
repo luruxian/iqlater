@@ -85,6 +85,11 @@ func ProjectID(v int) predicate.APIKeyProfileTemplate {
 	return predicate.APIKeyProfileTemplate(sql.FieldEQ(FieldProjectID, v))
 }
 
+// ApplyToNewPersonalKeys applies equality check predicate on the "apply_to_new_personal_keys" field. It's identical to ApplyToNewPersonalKeysEQ.
+func ApplyToNewPersonalKeys(v bool) predicate.APIKeyProfileTemplate {
+	return predicate.APIKeyProfileTemplate(sql.FieldEQ(FieldApplyToNewPersonalKeys, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.APIKeyProfileTemplate {
 	return predicate.APIKeyProfileTemplate(sql.FieldEQ(FieldCreatedAt, v))
@@ -363,6 +368,16 @@ func ProfileIsNil() predicate.APIKeyProfileTemplate {
 // ProfileNotNil applies the NotNil predicate on the "profile" field.
 func ProfileNotNil() predicate.APIKeyProfileTemplate {
 	return predicate.APIKeyProfileTemplate(sql.FieldNotNull(FieldProfile))
+}
+
+// ApplyToNewPersonalKeysEQ applies the EQ predicate on the "apply_to_new_personal_keys" field.
+func ApplyToNewPersonalKeysEQ(v bool) predicate.APIKeyProfileTemplate {
+	return predicate.APIKeyProfileTemplate(sql.FieldEQ(FieldApplyToNewPersonalKeys, v))
+}
+
+// ApplyToNewPersonalKeysNEQ applies the NEQ predicate on the "apply_to_new_personal_keys" field.
+func ApplyToNewPersonalKeysNEQ(v bool) predicate.APIKeyProfileTemplate {
+	return predicate.APIKeyProfileTemplate(sql.FieldNEQ(FieldApplyToNewPersonalKeys, v))
 }
 
 // HasProject applies the HasEdge predicate on the "project" edge.

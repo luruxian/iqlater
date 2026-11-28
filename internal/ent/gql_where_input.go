@@ -498,6 +498,10 @@ type APIKeyProfileTemplateWhereInput struct {
 	ProjectIDIn    []int `json:"projectIDIn,omitempty"`
 	ProjectIDNotIn []int `json:"projectIDNotIn,omitempty"`
 
+	// "apply_to_new_personal_keys" field predicates.
+	ApplyToNewPersonalKeys    *bool `json:"applyToNewPersonalKeys,omitempty"`
+	ApplyToNewPersonalKeysNEQ *bool `json:"applyToNewPersonalKeysNEQ,omitempty"`
+
 	// "project" edge predicates.
 	HasProject     *bool                `json:"hasProject,omitempty"`
 	HasProjectWith []*ProjectWhereInput `json:"hasProjectWith,omitempty"`
@@ -735,6 +739,12 @@ func (i *APIKeyProfileTemplateWhereInput) P() (predicate.APIKeyProfileTemplate, 
 	}
 	if len(i.ProjectIDNotIn) > 0 {
 		predicates = append(predicates, apikeyprofiletemplate.ProjectIDNotIn(i.ProjectIDNotIn...))
+	}
+	if i.ApplyToNewPersonalKeys != nil {
+		predicates = append(predicates, apikeyprofiletemplate.ApplyToNewPersonalKeysEQ(*i.ApplyToNewPersonalKeys))
+	}
+	if i.ApplyToNewPersonalKeysNEQ != nil {
+		predicates = append(predicates, apikeyprofiletemplate.ApplyToNewPersonalKeysNEQ(*i.ApplyToNewPersonalKeysNEQ))
 	}
 
 	if i.HasProject != nil {

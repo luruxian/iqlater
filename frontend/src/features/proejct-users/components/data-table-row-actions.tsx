@@ -1,6 +1,6 @@
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { Row } from '@tanstack/react-table';
-import { IconEdit, IconUserMinus } from '@tabler/icons-react';
+import { IconEdit, IconUserCheck, IconUserMinus, IconUserOff } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,11 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation();
   const { setOpen, setCurrentRow } = useUsers();
-  const { userPermissions } = usePermissions();
+  const { userPermissions, isProjectOwner, user: currentUser } = usePermissions();
+  const member = row.original;
+  // Project owners may deactivate/reactivate ordinary members' accounts, but
+  // never their own account or another owner's.
+  const canToggleAccountStatus = isProjectOwner && member.id !== currentUser?.id && !member.isOwner;
 
   // Don't show menu if user has no write permissions
   if (!userPermissions.canWrite) {
@@ -37,7 +41,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             <span className='sr-only'>{t('common.actions.openMenu')}</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' className='w-[160px]'>
+        <DropdownMenuContent align='end' className='w-[180px]'>
           {/* Edit - requires write permission */}
           {userPermissions.canEdit && (
             <DropdownMenuItem
@@ -48,6 +52,23 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             >
               <IconEdit size={16} className='mr-2' />
               {t('common.actions.edit')}
+            </DropdownMenuItem>
+          )}
+
+          {canToggleAccountStatus && (
+            <DropdownMenuItem
+              onClick={() => {
+                setCurrentRow(member);
+                setOpen('status');
+              }}
+              className={member.status === 'activated' ? 'text-orange-600' : 'text-green-600'}
+            >
+              {member.status === 'activated' ? (
+                <IconUserOff size={16} className='mr-2' />
+              ) : (
+                <IconUserCheck size={16} className='mr-2' />
+              )}
+              {member.status === 'activated' ? t('users.actions.deactivateAccount') : t('users.actions.reactivateAccount')}
             </DropdownMenuItem>
           )}
 

@@ -1,0 +1,25 @@
+# Project owners manage the personal API keys of their members.
+
+input CreatePersonalAPIKeyForUserInput {
+  projectID: ID!
+  """
+  The member who will own the key.
+  """
+  userID: ID!
+  name: String!
+}
+
+type IssuedAPIKeyPayload {
+  apiKey: APIKey!
+  """
+  The plaintext key, returned only once so the project owner can hand it over.
+  """
+  key: String!
+}
+
+extend type Mutation {
+  """
+  Issue a personal API key owned by a member of the project. Project owners only.
+  """
+  createPersonalAPIKeyForUser(input: CreatePersonalAPIKeyForUserInput!): IssuedAPIKeyPayload!
+}

@@ -16,6 +16,8 @@ import (
 func TestAdminGraphQLProtectsCredentialsAndRoleAssignments(t *testing.T) {
 	fx := newPluginEndpointFixture(t, "admin_credential_and_role_read")
 	projectKey := fx.db.APIKey.Query().Where(apikey.KeyEQ(fx.serviceAccount)).OnlyX(fx.setupCtx)
+	// A key only authenticates while its creator belongs to the key's project.
+	fx.db.UserProject.Create().SetUserID(fx.readerID).SetProjectID(projectKey.ProjectID).SaveX(fx.setupCtx)
 	readerKey := fx.db.APIKey.Create().SetName("Metadata reader").SetKey("test-reader-credential").
 		SetUserID(fx.readerID).SetProjectID(projectKey.ProjectID).SetType(apikey.TypeServiceAccount).
 		SetScopes([]string{"read_api_keys"}).SaveX(fx.setupCtx)

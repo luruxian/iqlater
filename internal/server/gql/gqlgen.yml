@@ -18,6 +18,7 @@ schema:
   - cost.graphql
   - analytics.graphql
   - plugin.graphql
+  - project_members.graphql
 
 omit_gqlgen_version_in_file_notice: true
 

@@ -50,6 +50,7 @@ export function ApiKeyCreateTemplateDialog({ open, onOpenChange }: ApiKeyCreateT
     () => ({
       name: '',
       description: '',
+      applyToNewPersonalKeys: false,
       profile: {
         name: '',
         modelMappings: [] as { from: string; to: string }[],
@@ -117,6 +118,7 @@ export function ApiKeyCreateTemplateDialog({ open, onOpenChange }: ApiKeyCreateT
       await createTemplate.mutateAsync({
         name: values.name,
         description: values.description || '',
+        applyToNewPersonalKeys: values.applyToNewPersonalKeys ?? false,
         projectID: selectedProjectId,
         profile: {
           ...values.profile,
@@ -183,6 +185,21 @@ export function ApiKeyCreateTemplateDialog({ open, onOpenChange }: ApiKeyCreateT
                     )}
                   />
                 </div>
+                <FormField
+                  control={form.control}
+                  name='applyToNewPersonalKeys'
+                  render={({ field }) => (
+                    <FormItem className='flex items-center justify-between gap-3 rounded-lg border p-4 space-y-0'>
+                      <div className='space-y-0.5'>
+                        <FormLabel>{t('apikeys.profileTemplates.applyToNewPersonalKeysLabel')}</FormLabel>
+                        <FormDescription>{t('apikeys.profileTemplates.applyToNewPersonalKeysDescription')}</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className='border-t pt-6'>

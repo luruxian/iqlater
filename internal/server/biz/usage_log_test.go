@@ -359,3 +359,32 @@ func toDecimalPtr(s string) *decimal.Decimal {
 	d, _ := decimal.NewFromString(s)
 	return &d
 }
+
+func TestUsageLogService_CreateUsageLogFromRequest_CopiesAttributedUser(t *testing.T) {
+	client := enttest.NewEntClient(t, "sqlite3", "file:usage_log_user?mode=memory&_fk=0")
+	defer client.Close()
+
+	ctx := authz.WithTestBypass(ent.NewContext(context.Background(), client))
+
+	p, err := client.Project.Create().SetName("customer").SetStatus(project.StatusActive).Save(ctx)
+	require.NoError(t, err)
+
+	req, err := client.Request.Create().
+		SetProjectID(p.ID).
+		SetModelID("test-model").
+		SetStatus(request.StatusCompleted).
+		SetRequestBody(objects.JSONRawMessage([]byte(`{}`))).
+		SetUserID(42).
+		Save(ctx)
+	require.NoError(t, err)
+
+	systemService := NewSystemService(SystemServiceParams{CacheConfig: xcache.Config{}, Ent: client})
+	svc := NewUsageLogService(client, systemService, NewChannelServiceForTest(client))
+
+	created, err := svc.CreateUsageLogFromRequest(ctx, req, &ent.RequestExecution{ModelID: "test-model"},
+		&llm.Usage{PromptTokens: 1, CompletionTokens: 1, TotalTokens: 2})
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	require.NotNil(t, created.UserID)
+	require.Equal(t, 42, *created.UserID)
+}

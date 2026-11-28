@@ -98,6 +98,20 @@ func (_c *APIKeyProfileTemplateCreate) SetProfile(v *objects.APIKeyProfile) *API
 	return _c
 }
 
+// SetApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field.
+func (_c *APIKeyProfileTemplateCreate) SetApplyToNewPersonalKeys(v bool) *APIKeyProfileTemplateCreate {
+	_c.mutation.SetApplyToNewPersonalKeys(v)
+	return _c
+}
+
+// SetNillableApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field if the given value is not nil.
+func (_c *APIKeyProfileTemplateCreate) SetNillableApplyToNewPersonalKeys(v *bool) *APIKeyProfileTemplateCreate {
+	if v != nil {
+		_c.SetApplyToNewPersonalKeys(*v)
+	}
+	return _c
+}
+
 // SetProject sets the "project" edge to the Project entity.
 func (_c *APIKeyProfileTemplateCreate) SetProject(v *Project) *APIKeyProfileTemplateCreate {
 	return _c.SetProjectID(v.ID)
@@ -166,6 +180,10 @@ func (_c *APIKeyProfileTemplateCreate) defaults() error {
 		v := apikeyprofiletemplate.DefaultProfile
 		_c.mutation.SetProfile(v)
 	}
+	if _, ok := _c.mutation.ApplyToNewPersonalKeys(); !ok {
+		v := apikeyprofiletemplate.DefaultApplyToNewPersonalKeys
+		_c.mutation.SetApplyToNewPersonalKeys(v)
+	}
 	return nil
 }
 
@@ -182,6 +200,9 @@ func (_c *APIKeyProfileTemplateCreate) check() error {
 	}
 	if _, ok := _c.mutation.ProjectID(); !ok {
 		return &ValidationError{Name: "project_id", err: errors.New(`ent: missing required field "APIKeyProfileTemplate.project_id"`)}
+	}
+	if _, ok := _c.mutation.ApplyToNewPersonalKeys(); !ok {
+		return &ValidationError{Name: "apply_to_new_personal_keys", err: errors.New(`ent: missing required field "APIKeyProfileTemplate.apply_to_new_personal_keys"`)}
 	}
 	if len(_c.mutation.ProjectIDs()) == 0 {
 		return &ValidationError{Name: "project", err: errors.New(`ent: missing required edge "APIKeyProfileTemplate.project"`)}
@@ -236,6 +257,10 @@ func (_c *APIKeyProfileTemplateCreate) createSpec() (*APIKeyProfileTemplate, *sq
 	if value, ok := _c.mutation.Profile(); ok {
 		_spec.SetField(apikeyprofiletemplate.FieldProfile, field.TypeJSON, value)
 		_node.Profile = value
+	}
+	if value, ok := _c.mutation.ApplyToNewPersonalKeys(); ok {
+		_spec.SetField(apikeyprofiletemplate.FieldApplyToNewPersonalKeys, field.TypeBool, value)
+		_node.ApplyToNewPersonalKeys = value
 	}
 	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -378,6 +403,18 @@ func (u *APIKeyProfileTemplateUpsert) ClearProfile() *APIKeyProfileTemplateUpser
 	return u
 }
 
+// SetApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field.
+func (u *APIKeyProfileTemplateUpsert) SetApplyToNewPersonalKeys(v bool) *APIKeyProfileTemplateUpsert {
+	u.Set(apikeyprofiletemplate.FieldApplyToNewPersonalKeys, v)
+	return u
+}
+
+// UpdateApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field to the value that was provided on create.
+func (u *APIKeyProfileTemplateUpsert) UpdateApplyToNewPersonalKeys() *APIKeyProfileTemplateUpsert {
+	u.SetExcluded(apikeyprofiletemplate.FieldApplyToNewPersonalKeys)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -507,6 +544,20 @@ func (u *APIKeyProfileTemplateUpsertOne) UpdateProfile() *APIKeyProfileTemplateU
 func (u *APIKeyProfileTemplateUpsertOne) ClearProfile() *APIKeyProfileTemplateUpsertOne {
 	return u.Update(func(s *APIKeyProfileTemplateUpsert) {
 		s.ClearProfile()
+	})
+}
+
+// SetApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field.
+func (u *APIKeyProfileTemplateUpsertOne) SetApplyToNewPersonalKeys(v bool) *APIKeyProfileTemplateUpsertOne {
+	return u.Update(func(s *APIKeyProfileTemplateUpsert) {
+		s.SetApplyToNewPersonalKeys(v)
+	})
+}
+
+// UpdateApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field to the value that was provided on create.
+func (u *APIKeyProfileTemplateUpsertOne) UpdateApplyToNewPersonalKeys() *APIKeyProfileTemplateUpsertOne {
+	return u.Update(func(s *APIKeyProfileTemplateUpsert) {
+		s.UpdateApplyToNewPersonalKeys()
 	})
 }
 
@@ -805,6 +856,20 @@ func (u *APIKeyProfileTemplateUpsertBulk) UpdateProfile() *APIKeyProfileTemplate
 func (u *APIKeyProfileTemplateUpsertBulk) ClearProfile() *APIKeyProfileTemplateUpsertBulk {
 	return u.Update(func(s *APIKeyProfileTemplateUpsert) {
 		s.ClearProfile()
+	})
+}
+
+// SetApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field.
+func (u *APIKeyProfileTemplateUpsertBulk) SetApplyToNewPersonalKeys(v bool) *APIKeyProfileTemplateUpsertBulk {
+	return u.Update(func(s *APIKeyProfileTemplateUpsert) {
+		s.SetApplyToNewPersonalKeys(v)
+	})
+}
+
+// UpdateApplyToNewPersonalKeys sets the "apply_to_new_personal_keys" field to the value that was provided on create.
+func (u *APIKeyProfileTemplateUpsertBulk) UpdateApplyToNewPersonalKeys() *APIKeyProfileTemplateUpsertBulk {
+	return u.Update(func(s *APIKeyProfileTemplateUpsert) {
+		s.UpdateApplyToNewPersonalKeys()
 	})
 }
 

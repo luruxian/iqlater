@@ -37,6 +37,9 @@ func (UsageLog) Indexes() []ent.Index {
 			StorageKey("usage_logs_by_channel_id_created_at"),
 		index.Fields("api_key_id", "created_at").
 			StorageKey("usage_logs_by_api_key_id_created_at"),
+		// Per-member usage within a project.
+		index.Fields("project_id", "user_id", "created_at").
+			StorageKey("usage_logs_by_project_id_user_id_created_at"),
 	}
 }
 
@@ -44,6 +47,12 @@ func (UsageLog) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("request_id").Immutable().Comment("Related request ID"),
 		field.Int("api_key_id").Optional().Immutable(),
+		// Older rows are empty; readers fall back to the API key's creator.
+		field.Int("user_id").Optional().Nillable().Immutable().
+			Comment("User the usage is attributed to: the API key creator, or the Playground user").
+			Annotations(
+				entgql.Skip(entgql.SkipType, entgql.SkipWhereInput, entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
+			),
 		field.Int("project_id").Immutable().Default(1).Comment("Project ID, default to 1 for backward compatibility"),
 		field.Int("channel_id").Immutable().Optional().Comment("Channel ID used for the request"), // Optional for deleted channel, this field is not null.
 		field.String("model_id").Immutable().Comment("Model identifier used for the request"),
