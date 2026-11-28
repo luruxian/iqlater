@@ -22,6 +22,11 @@ globs: "internal/ent/schema/**/*.go, internal/ent/migrate/**/*.go, internal/serv
 2. 历史数据需要补齐或修复时，在 `internal/ent/migrate/datamigrate/` 新增按版本命名的迁移（`v<version>.go` + 测试），并在 `migrator.go` 中按版本顺序注册。数据迁移必须幂等，见该目录 `README.md`。
 3. 必须在 DDL 之前清理的数据（例如删除枚举值前清掉使用该值的行），放在 `db/ent.go` 中 `Schema.Create` 之前执行，参考 `cleanupRemovedProviderQuotaTypes`。
 4. 所有变更必须同时适用于 SQLite、PostgreSQL、MySQL/TiDB。
+5. iqlater 生产使用 `versioned` 模式（`AXONHUB_DB_MIGRATION_MODE=versioned`）：启动时不执行清理和 `Schema.Create`，表结构由 `internal/ent/migrate/versioned/postgres/` 下的 Atlas 迁移文件决定。本地开发库与 SQLite 仍用 `auto` 模式。
+6. 改 schema 后，除 `make generate` 外，必须在同一提交中带上 `make migrate-diff name=<name>` 生成的迁移文件和更新后的 `atlas.sum`，并人工审查生成的 SQL（重点看 `DROP`、类型变更、NOT NULL 新列）。
+7. 已提交的迁移文件不再修改，修正也要新增迁移文件，否则 `atlas.sum` 校验失败或已部署环境与仓库不一致。
+8. 删列、改名按 expand-contract 分两次发布：先发布新增列和双写或回填，确认无代码再使用旧列后，下一次发布再删除旧列。
+9. 第 3 条的改表前清理逻辑在 `versioned` 模式下不会执行。上游新增或修改这类清理时，要改写成 SQL，放在迁移文件中 DDL 之前。
 
 ## 表与文件命名
 
@@ -121,3 +126,4 @@ globs: "internal/ent/schema/**/*.go, internal/ent/migrate/**/*.go, internal/serv
 4. 已在 SQLite 下跑相关测试；涉及类型、长度或索引时，确认 PostgreSQL 与 MySQL 也可用。
 5. 需要补历史数据时，已添加幂等的 datamigrate 及测试。
 6. GraphQL 与前端的读写链路已按 [ent-graphql.md](ent-graphql.md) 同步。
+7. `make migrate-check` 通过，迁移文件已随 schema 变更在同一提交中提交。
