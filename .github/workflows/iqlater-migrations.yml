@@ -1,0 +1,64 @@
+name: iqlater migrations
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGPASSWORD: pass
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v7.1.0
+        with:
+          go-version: '1.27.4'
+      - name: Generate GraphQL and Ent code
+        run: make generate
+      - name: Create dev, test and lint databases
+        run: |
+          for db in dev test lint; do
+            psql -h localhost -U postgres -c "CREATE DATABASE $db"
+          done
+      - name: Check schema is captured in migrations
+        env:
+          MIGRATE_DEV_URL: postgres://postgres:pass@localhost:5432/dev?sslmode=disable&search_path=public
+        run: make migrate-check
+      - name: Versioned migrations match AutoMigrate
+        env:
+          AXONHUB_TEST_PG_DSN: postgres://postgres:pass@localhost:5432/test?sslmode=disable
+        run: |
+          set -o pipefail
+          go test ./internal/server/db -run TestVersionedMigrationsMatchAutoMigrate -v | tee equivalence.log
+          # t.Skip 会让 go test 返回成功，必须确认用例真正执行并通过
+          grep -q -- '--- PASS: TestVersionedMigrationsMatchAutoMigrate' equivalence.log
+      - name: Lint latest migration
+        run: |
+          docker run --rm --network host \
+            -v "$PWD/internal/ent/migrate/versioned/postgres:/migrations:ro" \
+            arigaio/atlas:1.4.0-community migrate lint \
+            --dir file:///migrations \
+            --dev-url "postgres://postgres:pass@localhost:5432/lint?sslmode=disable&search_path=public" \
+            --latest 1

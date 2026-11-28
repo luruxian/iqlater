@@ -621,8 +621,8 @@ Expected: `docker volume ls | grep iqlater_` 无输出；`git status --short` �
 - Create: `.github/workflows/iqlater-image.yml`
 
 **Interfaces:**
-- Consumes: 仓库根目录 `Dockerfile`；`make generate`、`make test-backend-all`
-- Produces: 推送 `iqlater-v*` 标签后得到 `ghcr.io/luruxian/iqlater:<标签>` 与 `:latest`
+- Consumes: 仓库根目录 `Dockerfile`；`deploy/iqlater/migrate/Dockerfile`；`.github/workflows/iqlater-migrations.yml`；`make generate`、`make test-backend-all`
+- Produces: 推送 `iqlater-v*` 标签后得到 `ghcr.io/luruxian/iqlater:<标签>` 与 `:latest`，以及 `ghcr.io/luruxian/iqlater-migrate:<标签>` 与 `:latest`（迁移检查由 `iqlater-migrations.yml` 提供）
 
 - [ ] **Step 1: 写 workflow**
 
@@ -657,8 +657,11 @@ jobs:
       - name: Test
         run: make test-backend-all
 
+  migrations:
+    uses: ./.github/workflows/iqlater-migrations.yml
+
   image:
-    needs: test
+    needs: [test, migrations]
     if: startsWith(github.ref, 'refs/tags/iqlater-v')
     runs-on: ubuntu-latest
     permissions:
@@ -687,6 +690,18 @@ jobs:
           labels: org.opencontainers.image.source=https://github.com/luruxian/iqlater
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/iqlater/migrate/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/luruxian/iqlater-migrate:${{ github.ref_name }}
+            ghcr.io/luruxian/iqlater-migrate:latest
+          labels: org.opencontainers.image.source=https://github.com/luruxian/iqlater
+          cache-from: type=gha,scope=migrate
+          cache-to: type=gha,scope=migrate,mode=max
 ```
 
 - [ ] **Step 2: 校验 YAML 并核对 SHA**
@@ -712,7 +727,7 @@ gh run watch "$(gh run list -R luruxian/iqlater --workflow iqlater-image.yml --l
   -R luruxian/iqlater --exit-status
 ```
 
-Expected: `test` 成功，`image` 为 skipped
+Expected: `test`、`migrations` 成功，`image` 为 skipped
 
 ---
 
