@@ -25,6 +25,8 @@ Selected by the environment variable `AXONHUB_DB_MIGRATION_MODE` (config key `db
    - By default it starts a throwaway `postgres:18` container and removes it afterwards, so Docker is required.
    - Alternatively set `MIGRATE_DEV_URL` to an empty PostgreSQL database. The DSN must include `search_path=public`, for example `postgres://postgres:pass@127.0.0.1:5432/dev?sslmode=disable&search_path=public`.
 3. Review the generated SQL by hand. Look closely at `DROP`, type changes and new NOT NULL columns.
+   - If you hand-edit the generated, not-yet-committed file (for example to add pre-DDL cleanup SQL or an `-- atlas:nolint` directive), run `make migrate-hash` afterwards to refresh `atlas.sum`. It runs the pinned Atlas image, so Docker is required.
+   - CI `migrate lint` fails on destructive changes such as `DROP COLUMN` / `DROP TABLE`. For a reviewed, intended drop (the second step of expand-contract), put `-- atlas:nolint destructive` on its own line directly above the statement, then run `make migrate-hash`. Never add it to silence a drop you have not reviewed.
 4. Run `make migrate-check`: it confirms the schema matches the migration directory (regenerating produces no new file) and validates `atlas.sum`.
 5. Commit the migration files in the same commit as the schema change.
 
@@ -37,12 +39,12 @@ Rules:
 ## 3. Syncing with upstream
 
 1. Merge upstream.
-2. If upstream changed `internal/ent/schema/` or `schemahook`: run `make generate`, then `make migrate-diff name=upstream_<version>`.
+2. If upstream changed `internal/ent/schema/` or `schemahook`: run `make generate`, then `make migrate-diff name=upstream_<version>`. If Ent drops a column or table, lint will fail; after confirming the drop is intended, add `-- atlas:nolint destructive` above that statement (see section 2).
 3. Check upstream changes to the pre-DDL cleanup logic in `internal/server/db/ent.go` (such as `cleanupRemovedProviderQuotaTypes`). `versioned` mode does not run these cleanups, so rewrite them as SQL and put it in the new migration file before the DDL.
-4. Review the generated SQL, focusing on `DROP`, type changes and new NOT NULL columns.
+4. Review the generated SQL, focusing on `DROP`, type changes and new NOT NULL columns. After any hand edit, run `make migrate-hash`.
 5. Commit, and release only after CI passes.
 
-Note: Ent's diff does not run Creator hooks registered through `schema.WithHooks` (for example `schemahook.V0_3_0`). This is harmless today, and the CI equivalence test guards it. If upstream adds a new `schemahook`, check the result of that test.
+Note: Ent's diff does not run Creator hooks registered through `schema.WithHooks` (for example `schemahook.V0_3_0`). As long as no `schemahook` changes the resulting schema, this does not matter, and the CI equivalence test guards it. When upstream adds or changes a `schemahook`, check the result of that test.
 
 ## 4. Release and upgrade
 
@@ -86,7 +88,7 @@ Notes:
   docker volume rm iqlater_postgres_data
   ```
 
-  Only do this when there is no data to keep. The production database holds no live data, which is why no baseline-marking procedure was designed. Use the volume name shown by `docker volume ls`.
+  Only do this when the database holds no data you need to keep (for example before the first production launch). Never do it on a database with production data: no baseline-marking procedure is provided. Use the volume name shown by `docker volume ls`.
 
 ## 6. Use hex characters for POSTGRES_PASSWORD
 
@@ -99,7 +101,7 @@ openssl rand -hex 24
 ## 7. Atlas version and community edition features
 
 - The migration image is pinned to `arigaio/atlas:1.4.0-community` (the open-source build) in `deploy/iqlater/migrate/Dockerfile`, and CI uses the same tag. `latest-community` is a canary build and is not used. When upgrading, change the Dockerfile and `.github/workflows/iqlater-migrations.yml` together.
-- `migrate lint` works in this community image without logging in. CI uses it to check the latest migration file.
+- `migrate lint` works in this community image without logging in. CI uses it to check the migration files added by the change.
 
 ## 8. CI
 
@@ -107,6 +109,5 @@ openssl rand -hex 24
 
 1. `make migrate-check`: the schema is captured in the migrations and `atlas.sum` is valid.
 2. `TestVersionedMigrationsMatchAutoMigrate`: applies all versioned migrations to an empty database and compares the result with the schema produced by `Schema.Create` in `auto` mode. The difference must be empty.
-3. `atlas migrate lint --latest 1`: checks the latest migration for destructive changes.
+3. `atlas migrate lint --latest <n>`: checks the migration files added by the change (pull request: compared with the merge base of `main`; push: compared with the pre-push commit; `n` is the number of new `.sql` files, and lint is skipped when there are none). The Atlas image has no `git`, so `--git-base` is not used. Destructive changes (`DROP COLUMN`, `DROP TABLE`) fail the job unless the statement carries `-- atlas:nolint destructive` (see section 2).
 
-Watch the result the first time this workflow runs on GitHub.

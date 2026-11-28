@@ -2,7 +2,7 @@
 	test-backend-all \
 	e2e-test e2e-backend-start e2e-backend-stop e2e-backend-status e2e-backend-restart e2e-backend-clean \
 	migration-test migration-test-all migration-test-all-dbs \
-	migrate-diff migrate-check \
+	migrate-diff migrate-check migrate-hash \
 	sync-faq sync-models filter-logs \
 	lint lint-privacy \
 	generate-schema
@@ -159,6 +159,12 @@ migrate-diff:
 # Check that the migration directory matches the Ent schema and atlas.sum is valid
 migrate-check:
 	@./scripts/migration/versioned.sh check
+
+# Recompute atlas.sum after hand-editing a generated, not-yet-committed migration
+migrate-hash:
+	@docker run --rm --user "$$(id -u):$$(id -g)" \
+		-v "$(PWD)/internal/ent/migrate/versioned/postgres:/migrations" \
+		arigaio/atlas:1.4.0-community migrate hash --dir file:///migrations
 
 # --- Data Syncing ---
 

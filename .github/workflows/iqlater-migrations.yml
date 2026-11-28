@@ -54,11 +54,32 @@ jobs:
           go test ./internal/server/db -run TestVersionedMigrationsMatchAutoMigrate -v | tee equivalence.log
           # t.Skip 会让 go test 返回成功，必须确认用例真正执行并通过
           grep -q -- '--- PASS: TestVersionedMigrationsMatchAutoMigrate' equivalence.log
-      - name: Lint latest migration
+      - name: Lint new migrations
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
+          # atlas 镜像不含 git，--git-base 不可用；这里自己数出本次新增的迁移文件数，交给 --latest
+          dir=internal/ent/migrate/versioned/postgres
+          base=""
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base=$(git merge-base origin/main HEAD)
+          elif [ "$EVENT_NAME" = "push" ] && ! echo "$BEFORE_SHA" | grep -Eq '^0*$'; then
+            base="$BEFORE_SHA"
+          fi
+          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            n=$(git diff --name-only --diff-filter=A "$base" HEAD -- "$dir" | grep -c '\.sql$' || true)
+          else
+            n=1
+          fi
+          if [ "$n" -eq 0 ]; then
+            echo "no new migration files, skip lint"
+            exit 0
+          fi
+          echo "linting latest $n migration(s)"
           docker run --rm --network host \
-            -v "$PWD/internal/ent/migrate/versioned/postgres:/migrations:ro" \
+            -v "$PWD/$dir:/migrations:ro" \
             arigaio/atlas:1.4.0-community migrate lint \
             --dir file:///migrations \
             --dev-url "postgres://postgres:pass@localhost:5432/lint?sslmode=disable&search_path=public" \
-            --latest 1
+            --latest "$n"

@@ -25,6 +25,8 @@ iqlater 生产环境（PostgreSQL 18，Docker Compose，`deploy/iqlater/`）使�
    - 默认会启动一个临时的 `postgres:18` 容器并在结束后销毁，需要本机有 Docker。
    - 也可以用 `MIGRATE_DEV_URL` 指定一个空的 PostgreSQL 库，DSN 必须包含 `search_path=public`，例如 `postgres://postgres:pass@127.0.0.1:5432/dev?sslmode=disable&search_path=public`。
 3. 人工审查生成的 SQL，重点看 `DROP`、类型变更、NOT NULL 新列。
+   - 手工修改了生成但尚未提交的文件（例如补充 DDL 之前的清理 SQL，或加 `-- atlas:nolint` 指令）后，运行 `make migrate-hash` 刷新 `atlas.sum`。该命令使用固定版本的 Atlas 镜像，需要 Docker。
+   - CI 的 `migrate lint` 会拒绝 `DROP COLUMN` / `DROP TABLE` 等破坏性变更。对已审查、确属预期的删除（expand-contract 的第二步），在该语句正上方单独一行写 `-- atlas:nolint destructive`，再运行 `make migrate-hash`。不要用它掩盖未审查的删除。
 4. 运行 `make migrate-check`：确认 schema 与迁移目录一致（再生成一次不会产生新文件），并校验 `atlas.sum`。
 5. 迁移文件与 schema 变更在同一提交中提交。
 
@@ -37,12 +39,12 @@ iqlater 生产环境（PostgreSQL 18，Docker Compose，`deploy/iqlater/`）使�
 ## 3. 上游同步流程
 
 1. 合并上游。
-2. 若上游改动了 `internal/ent/schema/` 或 `schemahook`：运行 `make generate`，再运行 `make migrate-diff name=upstream_<version>`。
+2. 若上游改动了 `internal/ent/schema/` 或 `schemahook`：运行 `make generate`，再运行 `make migrate-diff name=upstream_<version>`。若 Ent 删除了列或表，lint 会失败；确认删除符合预期后，在该语句上方加 `-- atlas:nolint destructive`（见第 2 节）。
 3. 检查上游对 `internal/server/db/ent.go` 中改表前清理逻辑（如 `cleanupRemovedProviderQuotaTypes`）的改动。`versioned` 模式不执行这些清理，要把它们改写成 SQL，放在新迁移文件中 DDL 之前。
-4. 审查生成的 SQL，重点看 `DROP`、类型变更、NOT NULL 新列。
+4. 审查生成的 SQL，重点看 `DROP`、类型变更、NOT NULL 新列。任何手工修改之后都要运行 `make migrate-hash`。
 5. 提交，等 CI 通过后再发布。
 
-注意：Ent 的 diff 不会执行通过 `schema.WithHooks` 注册的 Creator 钩子（如 `schemahook.V0_3_0`）。目前这不影响结果，由 CI 的结构等价测试把关。如果上游新增了 `schemahook`，务必查看该测试的结果。
+注意：Ent 的 diff 不会执行通过 `schema.WithHooks` 注册的 Creator 钩子（如 `schemahook.V0_3_0`）。只要没有 `schemahook` 改变最终结构，这就不影响结果，由 CI 的结构等价测试把关。上游新增或修改 `schemahook` 时，务必查看该测试的结果。
 
 ## 4. 发布与升级
 
@@ -86,7 +88,7 @@ iqlater 生产环境（PostgreSQL 18，Docker Compose，`deploy/iqlater/`）使�
   docker volume rm iqlater_postgres_data
   ```
 
-  只有在没有需要保留的数据时才可以这样做。当前生产库没有线上数据，所以没有设计 baseline 标记流程。卷名以 `docker volume ls` 的输出为准。
+  只有在库中没有需要保留的数据时才可以这样做（例如生产首次上线之前）。有生产数据的库绝不能这样做：本方案不提供 baseline 标记流程。卷名以 `docker volume ls` 的输出为准。
 
 ## 6. POSTGRES_PASSWORD 使用 hex 字符
 
@@ -99,7 +101,7 @@ openssl rand -hex 24
 ## 7. Atlas 版本与社区版功能
 
 - 迁移镜像固定为 `arigaio/atlas:1.4.0-community`（开源构建），见 `deploy/iqlater/migrate/Dockerfile`，CI 使用同一个标签。`latest-community` 是 canary 构建，不使用。升级版本时同步修改 Dockerfile 和 `.github/workflows/iqlater-migrations.yml`。
-- 该社区版镜像的 `migrate lint` 无需登录即可使用，CI 用它检查最新一个迁移文件。
+- 该社区版镜像的 `migrate lint` 无需登录即可使用，CI 用它检查本次变更新增的迁移文件。
 
 ## 8. CI
 
@@ -107,6 +109,5 @@ openssl rand -hex 24
 
 1. `make migrate-check`：schema 已体现在迁移中，`atlas.sum` 有效。
 2. `TestVersionedMigrationsMatchAutoMigrate`：在空库上执行全部版本化迁移，与 `auto` 模式 `Schema.Create` 建出的结构比较，差异必须为空。
-3. `atlas migrate lint --latest 1`：检查最新迁移中的破坏性变更。
+3. `atlas migrate lint --latest <n>`：检查本次变更新增的迁移文件（pull request 与 `main` 的 merge base 比较，push 与推送前的提交比较；`n` 为新增 `.sql` 文件数，没有新增则跳过）。Atlas 镜像不含 `git`，所以不使用 `--git-base`。破坏性变更（`DROP COLUMN`、`DROP TABLE`）会使作业失败，除非该语句带 `-- atlas:nolint destructive`（见第 2 节）。
 
-这个 workflow 首次在 GitHub 上运行时，需要关注结果。

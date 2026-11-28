@@ -9,7 +9,7 @@ globs: "internal/ent/schema/**/*.go, internal/ent/migrate/**/*.go, internal/serv
 
 ## 迁移机制（先理解再改表）
 
-启动时由 `internal/server/db/ent.go` 执行 `client.Schema.Create`，关键选项决定了改表的风险：
+`auto` 模式（本地开发、SQLite、上游）启动时由 `internal/server/db/ent.go` 执行 `client.Schema.Create`；迁移选项统一定义在 `internal/server/db/migration.go` 的 `SchemaMigrateOptions`，versioned 迁移生成也使用它。关键选项决定了改表的风险：
 
 | 选项 | 含义 | 对改表的影响 |
 |------|------|--------------|
@@ -18,7 +18,7 @@ globs: "internal/ent/schema/**/*.go, internal/ent/migrate/**/*.go, internal/serv
 | `WithDropIndex(true)` | 删除 schema 中已不存在的索引 | 改索引名等于删除后重建 |
 | `filterEquivalentDefaultChanges()` | 过滤仅格式不同的默认值差异 | 避免 SQLite 每次启动重建表；新增时间默认值沿用 `entsql.DefaultExpr("CURRENT_TIMESTAMP")` |
 
-1. 结构变更只改 `internal/ent/schema/`，运行 `make generate`，由自动迁移生效。不新增手写 SQL 迁移文件；`internal/ent/migrate/migrations/` 下的 SQL 是历史遗留，不作为先例。
+1. `auto` 模式下，结构变更只改 `internal/ent/schema/`，运行 `make generate`，由自动迁移生效，不新增手写 SQL 迁移文件；`internal/ent/migrate/migrations/` 下的 SQL 是历史遗留，不作为先例。iqlater 生产用 `versioned` 模式，见第 5–9 条。
 2. 历史数据需要补齐或修复时，在 `internal/ent/migrate/datamigrate/` 新增按版本命名的迁移（`v<version>.go` + 测试），并在 `migrator.go` 中按版本顺序注册。数据迁移必须幂等，见该目录 `README.md`。
 3. 必须在 DDL 之前清理的数据（例如删除枚举值前清掉使用该值的行），放在 `db/ent.go` 中 `Schema.Create` 之前执行，参考 `cleanupRemovedProviderQuotaTypes`。
 4. 所有变更必须同时适用于 SQLite、PostgreSQL、MySQL/TiDB。
@@ -26,7 +26,8 @@ globs: "internal/ent/schema/**/*.go, internal/ent/migrate/**/*.go, internal/serv
 6. 改 schema 后，除 `make generate` 外，必须在同一提交中带上 `make migrate-diff name=<name>` 生成的迁移文件和更新后的 `atlas.sum`，并人工审查生成的 SQL（重点看 `DROP`、类型变更、NOT NULL 新列）。
 7. 已提交的迁移文件不再修改，修正也要新增迁移文件，否则 `atlas.sum` 校验失败或已部署环境与仓库不一致。
 8. 删列、改名按 expand-contract 分两次发布：先发布新增列和双写或回填，确认无代码再使用旧列后，下一次发布再删除旧列。
-9. 第 3 条的改表前清理逻辑在 `versioned` 模式下不会执行。上游新增或修改这类清理时，要改写成 SQL，放在迁移文件中 DDL 之前。
+9. 第 3 条的改表前清理逻辑在 `versioned` 模式下不会执行。上游新增或修改这类清理时，要改写成 SQL，放在迁移文件中 DDL 之前。手工修改尚未提交的生成文件后，运行 `make migrate-hash` 刷新 `atlas.sum`。
+10. CI 的 `migrate lint` 拒绝破坏性变更。已审查、确属预期的删除（expand-contract 第二步、上游同步），在语句正上方单独一行写 `-- atlas:nolint destructive` 并运行 `make migrate-hash`；未审查的删除不得加。
 
 ## 表与文件命名
 

@@ -7,6 +7,8 @@
 // 注意事项:
 //   迁移选项必须来自 db.SchemaMigrateOptions，保证生成的 SQL 与 auto 模式的 Schema.Create 结构一致。
 //   -dev-url 必须是空库并带 search_path=public，否则 SQL 会带 schema 前缀或 replay 失败。
+//   Ent NamedDiff 不会执行通过 schema.WithHooks 注册的 Creator 钩子（如 schemahook.V0_3_0），
+//   TestVersionedMigrationsMatchAutoMigrate 用来发现由此产生的结构偏差。
 
 package main
 
