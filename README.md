@@ -1,3 +1,112 @@
+# iqlater
+
+iqlater 基于 [AxonHub](https://github.com/looplj/axonhub) fork。axonhub 是唯一对外入口；[magpie](https://github.com/yetone/magpie) 作为上游渠道，负责登录各订阅账号和保管供应商密钥。设计见 [docs/superpowers/specs/2026-11-27-iqlater-axonhub-design.md](docs/superpowers/specs/2026-11-27-iqlater-axonhub-design.md)。
+
+## 开发环境启动
+
+完整环境有四部分：PostgreSQL（本机）、magpie（Docker）、axonhub 后端（本机，端口 8090）、axonhub 前端（Vite，端口 5173）。已完成下面的[首次搭建](#本地开发首次搭建)后，每次按以下顺序启动，命令都在仓库根目录执行。
+
+**1. 数据库和 magpie**（后台运行，执行一次即可）
+
+```bash
+brew services start postgresql@18                # Homebrew 安装的 PG 18；已在运行可跳过
+docker compose -f dev/docker-compose.yml up -d
+```
+
+**2. axonhub 后端**（终端 A）
+
+```bash
+air
+```
+
+- air 监听 `.go`、`.yml` 改动，自动重新编译并重启（约 10 秒延迟，见 `.air.toml`），产物在 `tmp/axonhub`，日志在 `air.log`。
+- 首次安装：`go install github.com/air-verse/air@latest`。提示找不到 `air` 时，把 Go 的 bin 目录加入 PATH：`echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.zshrc && source ~/.zshrc`。
+- 不需要热重载时：`make build-backend && ./axonhub`。
+- 启动时读取根目录 `config.yml`，数据库须已在运行。
+
+**3. axonhub 前端**（终端 B）
+
+```bash
+cd frontend
+pnpm install    # 首次或依赖变化时
+pnpm dev
+```
+
+Vite 热更新；`/admin`、`/oauth` 等请求代理到 `http://localhost:8090`，后端在别处时用 `VITE_API_URL` 指定。开发时不需要 `make build-frontend`。
+
+**4. 使用**
+
+- 后台：<http://localhost:5173>
+- 客户端调用：`http://localhost:8090`（`/v1/chat/completions`、`/v1/messages`、`/v1/responses`），使用后台 API Keys 页面创建的 key。
+- magpie Web UI：`docker compose -f dev/docker-compose.yml logs magpie | grep -o 'http://127.0.0.1:3430/[^ ]*' | tail -1`
+
+改了 Ent schema（`internal/ent/schema/`）或 GraphQL schema（`*.graphql`）后，先执行 `make generate`，air 会随后重新编译。
+
+检查是否正常：
+
+```bash
+pg_isready -h localhost -p 5432                  # accepting connections
+docker compose -f dev/docker-compose.yml ps      # magpie 为 healthy
+curl -s http://localhost:8090/health             # "status":"healthy"
+```
+
+停止：在 axonhub、前端的终端按 Ctrl+C，然后 `docker compose -f dev/docker-compose.yml down`（magpie 的登录和配置保存在卷里，不会丢）。
+
+生产环境的启动见[生产部署](#生产部署)。
+
+## 本地开发首次搭建
+
+axonhub 与 PostgreSQL 跑在本机，只有 magpie 跑在 Docker 里。需要 Go、Node.js + pnpm、PostgreSQL 18、Docker。
+
+1. 建库：
+
+   ```bash
+   createuser -P iqlater          # 设置数据库密码
+   createdb -O iqlater iqlater
+   ```
+
+2. 配置 axonhub：`cp dev/config.example.yml config.yml`，把 `CHANGE_ME` 换成上一步的密码。`config.yml` 不入库。
+
+3. 启动 magpie：
+
+   ```bash
+   cp dev/.env.example dev/.env   # 填 MAGPIE_WEB_KEY，生成：openssl rand -hex 24
+   docker compose -f dev/docker-compose.yml up -d
+   # 带 key 的 Web UI 地址
+   docker compose -f dev/docker-compose.yml logs magpie | grep -o 'http://127.0.0.1:3430/[^ ]*' | tail -1
+   ```
+
+4. 按[开发环境启动](#开发环境启动)启动 axonhub 前后端，打开 <http://localhost:5173>，首次访问时初始化管理员账号。
+
+## 接入 magpie 渠道
+
+1. 在 magpie Web UI 中登录订阅或添加按 key 计费的供应商。
+2. 生成 gateway key：`docker compose -f dev/docker-compose.yml exec magpie magpie gateway-key add iqlater`。
+3. 在 axonhub 后台 → 渠道 → 新建：
+   - Base URL：开发填 `http://127.0.0.1:3425`，部署填 `http://magpie:3425`（不要带 `/v1`）。
+   - API Key：上一步的 gateway key。
+   - 类型：Claude 用 `anthropic`，GPT / Codex 用 `openai_responses` 或 `openai`。
+4. 开启"自动同步支持的模型"时，用"模型过滤规则"限定供应商，如 `sub2api-claude/.*`。不设规则会把 magpie 上所有供应商的模型都同步进来。
+
+模型名带 magpie 供应商前缀，如 `sub2api-openai/gpt-6.1-sol`。
+
+## 生产部署
+
+单台服务器，Docker Compose 运行 4 个容器：Caddy（HTTPS 入口）、axonhub、magpie、PostgreSQL 18。只有 Caddy 对外开放 80/443。
+
+```bash
+cd deploy/iqlater
+cp .env.example .env   # 填 DOMAIN、IQLATER_VERSION、POSTGRES_PASSWORD、MAGPIE_WEB_KEY、BACKUP_PASSPHRASE
+docker compose up -d
+```
+
+- 镜像为 `ghcr.io/luruxian/iqlater:<IQLATER_VERSION>`，用仓库根目录的 `Dockerfile` 构建。
+- magpie Web UI 只监听服务器本机，经 SSH 隧道访问：`ssh -L 3430:127.0.0.1:3430 <服务器>`。
+- 备份：`./scripts/backup.sh` 加密备份数据库和 magpie 配置，恢复方法见脚本头部。
+- 本机验证部署编排：见 [docker-compose.local.yml](deploy/iqlater/docker-compose.local.yml) 头部说明。
+
+---
+
 <div align="center">
 
 # AxonHub - All-in-one AI 开发平台
