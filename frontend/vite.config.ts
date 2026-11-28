@@ -44,6 +44,11 @@ export default defineConfig({
         target: process.env.VITE_API_URL || 'http://localhost:8090',
         changeOrigin: true,
       },
+      // Public invitation endpoints (GET lookup, POST register) live outside /admin.
+      '/auth/': {
+        target: process.env.VITE_API_URL || 'http://localhost:8090',
+        changeOrigin: true,
+      },
       '/oauth': {
         target: process.env.VITE_API_URL || 'http://localhost:8090',
         changeOrigin: true,
