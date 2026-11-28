@@ -18,8 +18,9 @@ func TestPluginEntProjectAndResourceIsolation(t *testing.T) {
 	db := enttest.NewEntClient(t, "sqlite3", "file:plugin_scope_isolation?mode=memory&_fk=0")
 	t.Cleanup(func() { db.Close() })
 	setup := authz.WithTestBypass(context.Background())
+	// Delegated views are never project owners, so the rows must belong to the delegating user.
 	for _, projectID := range []int{100, 200} {
-		_, err := db.Request.Create().SetProjectID(projectID).SetModelID("model").SetRequestBody([]byte(`{}`)).SetStatus(request.StatusCompleted).SetStream(false).Save(setup)
+		_, err := db.Request.Create().SetProjectID(projectID).SetUserID(1).SetModelID("model").SetRequestBody([]byte(`{}`)).SetStatus(request.StatusCompleted).SetStream(false).Save(setup)
 		require.NoError(t, err)
 	}
 	u := &ent.User{ID: 1, Edges: ent.UserEdges{ProjectUsers: []*ent.UserProject{{ProjectID: 100, IsOwner: true}}}}

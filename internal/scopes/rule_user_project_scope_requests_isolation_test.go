@@ -10,13 +10,14 @@ import (
 	"github.com/looplj/axonhub/internal/authz"
 	"github.com/looplj/axonhub/internal/contexts"
 	"github.com/looplj/axonhub/internal/ent"
+	"github.com/looplj/axonhub/internal/ent/apikey"
 	"github.com/looplj/axonhub/internal/ent/enttest"
 	"github.com/looplj/axonhub/internal/ent/request"
 	"github.com/looplj/axonhub/internal/ent/usagelog"
 	"github.com/looplj/axonhub/internal/scopes"
 )
 
-func TestUserProjectScopeReadRequestsRuleIsolatesPlaygroundRequests(t *testing.T) {
+func TestUserProjectScopeReadRequestsRuleIsolatesMemberRequests(t *testing.T) {
 	client := enttest.NewEntClient(t, "sqlite3", "file:request_user_isolation?mode=memory&_fk=0")
 	t.Cleanup(func() { client.Close() })
 
@@ -65,7 +66,29 @@ func TestUserProjectScopeReadRequestsRuleIsolatesPlaygroundRequests(t *testing.T
 		Save(setupCtx)
 	require.NoError(t, err)
 
-	for _, req := range []*ent.Request{creatorRequest, otherRequest, legacyRequest, apiRequest} {
+	// A shared user-type key: its requests belong to the key creator, not to every member.
+	otherUserKey, err := client.APIKey.Create().
+		SetName("other user key").
+		SetKey("other-user-key").
+		SetType(apikey.TypeUser).
+		SetUserID(2).
+		SetProjectID(projectID).
+		Save(setupCtx)
+	require.NoError(t, err)
+
+	// Stored without user_id, as API requests were before attribution existed.
+	otherKeyRequest, err := client.Request.Create().
+		SetProjectID(projectID).
+		SetAPIKeyID(otherUserKey.ID).
+		SetSource(request.SourceAPI).
+		SetModelID("other-key-model").
+		SetRequestBody([]byte(`{}`)).
+		SetStatus(request.StatusCompleted).
+		SetStream(false).
+		Save(setupCtx)
+	require.NoError(t, err)
+
+	for _, req := range []*ent.Request{creatorRequest, otherRequest, legacyRequest, apiRequest, otherKeyRequest} {
 		_, err = client.UsageLog.Create().
 			SetRequestID(req.ID).
 			SetProjectID(projectID).
@@ -82,20 +105,19 @@ func TestUserProjectScopeReadRequestsRuleIsolatesPlaygroundRequests(t *testing.T
 		usageCount int
 	}{
 		{
-			name: "project member sees own playground requests and shared API requests",
+			name: "project member sees only own requests",
 			user: projectRequestUser(1, projectID, false, nil),
 			requestIDs: []int{
 				creatorRequest.ID,
-				apiRequest.ID,
 			},
-			usageCount: 2,
+			usageCount: 1,
 		},
 		{
-			name: "other project member cannot query another users playground request by ID",
+			name: "member sees own playground requests and requests via keys they created",
 			user: projectRequestUser(2, projectID, false, nil),
 			requestIDs: []int{
 				otherRequest.ID,
-				apiRequest.ID,
+				otherKeyRequest.ID,
 			},
 			usageCount: 2,
 		},
@@ -107,8 +129,9 @@ func TestUserProjectScopeReadRequestsRuleIsolatesPlaygroundRequests(t *testing.T
 				otherRequest.ID,
 				legacyRequest.ID,
 				apiRequest.ID,
+				otherKeyRequest.ID,
 			},
-			usageCount: 4,
+			usageCount: 5,
 		},
 		{
 			name: "system scoped user can audit all requests in the selected project",
@@ -118,8 +141,9 @@ func TestUserProjectScopeReadRequestsRuleIsolatesPlaygroundRequests(t *testing.T
 				otherRequest.ID,
 				legacyRequest.ID,
 				apiRequest.ID,
+				otherKeyRequest.ID,
 			},
-			usageCount: 4,
+			usageCount: 5,
 		},
 	}
 
@@ -145,6 +169,13 @@ func TestUserProjectScopeReadRequestsRuleIsolatesPlaygroundRequests(t *testing.T
 		client,
 	)
 	_, err = client.Request.Get(ctx, creatorRequest.ID)
+	require.True(t, ent.IsNotFound(err))
+
+	ctx = ent.NewContext(
+		contexts.WithProjectID(contexts.WithUser(context.Background(), projectRequestUser(1, projectID, false, nil)), projectID),
+		client,
+	)
+	_, err = client.Request.Get(ctx, otherKeyRequest.ID)
 	require.True(t, ent.IsNotFound(err))
 }
 

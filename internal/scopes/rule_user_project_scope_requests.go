@@ -3,7 +3,6 @@ package scopes
 import (
 	"context"
 
-	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/entql"
 
@@ -15,7 +14,7 @@ import (
 )
 
 // UserProjectScopeReadRequestsRule restricts project request and usage log reads.
-// Members see their own Playground records and API requests permitted by key visibility;
+// Members see only their own requests (Playground or via API keys they created);
 // project owners and system-scoped users can audit all records in the project.
 func UserProjectScopeReadRequestsRule(requiredScope ScopeSlug) privacy.QueryRule {
 	return privacy.FilterFunc(func(ctx context.Context, q privacy.Filter) error {
@@ -43,35 +42,21 @@ func UserProjectScopeReadRequestsRule(requiredScope ScopeSlug) privacy.QueryRule
 			return privacy.Allowf("User %d can audit requests in project %d", currentUser.ID, projectID)
 		}
 
+		// Members see only requests attributed to them. The API key creator check covers
+		// API requests stored before requests.user_id was populated.
 		switch q := q.(type) {
 		case *ent.RequestFilter:
 			q.Where(entql.Or(
-				entql.And(
-					entql.FieldEQ(request.FieldSource, string(request.SourcePlayground)),
-					entql.FieldEQ(request.FieldUserID, currentUser.ID),
-				),
-				entql.And(
-					entql.FieldNEQ(request.FieldSource, string(request.SourcePlayground)),
-					entql.Or(
-						entql.FieldNil(request.FieldAPIKeyID),
-						entql.HasEdgeWith("api_key", sqlgraph.WrapFunc(func(s *sql.Selector) {
-							apikey.Or(apikey.TypeNEQ(apikey.TypePersonal), apikey.UserID(currentUser.ID))(s)
-						})),
-					),
-				),
+				entql.FieldEQ(request.FieldUserID, currentUser.ID),
+				entql.HasEdgeWith("api_key", sqlgraph.WrapFunc(apikey.UserID(currentUser.ID))),
 			))
 		case *ent.UsageLogFilter:
 			q.WhereHasRequestWith(request.Or(
-				request.And(request.SourceEQ(request.SourcePlayground), request.UserIDEQ(currentUser.ID)),
-				request.And(
-					request.SourceNEQ(request.SourcePlayground),
-					request.Or(request.APIKeyIDIsNil(), request.HasAPIKeyWith(
-						apikey.Or(apikey.TypeNEQ(apikey.TypePersonal), apikey.UserID(currentUser.ID)),
-					)),
-				),
+				request.UserIDEQ(currentUser.ID),
+				request.HasAPIKeyWith(apikey.UserID(currentUser.ID)),
 			))
 		}
 
-		return privacy.Allowf("User %d can query permitted requests in project %d", currentUser.ID, projectID)
+		return privacy.Allowf("User %d can query own requests in project %d", currentUser.ID, projectID)
 	})
 }
