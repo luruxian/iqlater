@@ -18,7 +18,7 @@ globs: "**/*.go"
 2. Do not add handwritten pointer helper functions such as `stringPtr`; use `lo.ToPtr(...)` or `new(T)` when appropriate.
 3. It is acceptable to use `lo.ToPtr(...)` for constants or literals that cannot be addressed directly.
 4. Follow the existing FX dependency injection patterns.
-5. Use structured logging with zap.
+5. Use structured logging via `internal/log`; follow [logging.md](logging.md).
 6. Propagate `context.Context` correctly through request and service boundaries.
 7. Handle errors with the unified helpers in `internal/pkg/xerrors` and wrap them with useful context.
 8. Any manually started goroutine (`go func(...) { ... }(...)` or equivalent) must install a top-level `defer recover()` guard that logs the panic before the goroutine exits.

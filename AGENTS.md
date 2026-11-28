@@ -111,12 +111,15 @@ All detailed rules are in `.agents/rules/`:
 
 | File | Scope | Description |
 |------|-------|-------------|
+| [project-structure.md](.agents/rules/project-structure.md) | Always | 顶层目录职责、前后端分层与依赖方向、新增代码落点、feature 模板 |
 | [go-general.md](.agents/rules/go-general.md) | `**/*.go` | Go 通用约定、错误处理、依赖注入、开发命令约束 |
 | [go-version.md](.agents/rules/go-version.md) | `**/go.mod`, `Dockerfile`, `.github/workflows/*.yml`, `docs/**/development.md`, `scripts/bump-go-version.sh` | 用 `scripts/bump-go-version.sh` 一次升级模块、镜像、文档和 workflow 里的 Go 版本 |
 | [ent-graphql.md](.agents/rules/ent-graphql.md) | `internal/ent/schema/**/*.go`, `internal/server/gql/**/*.go`, `internal/server/gql/**/*.graphql`, `gqlgen.yml` | Ent、GraphQL、代码生成、schema 变更规则 |
+| [database-schema.md](.agents/rules/database-schema.md) | `internal/ent/schema/**/*.go`, `internal/ent/migrate/**/*.go`, `internal/server/db/**/*.go` | 建表与改表：迁移机制、命名、Mixin、软删除、关联、字段类型、权限 |
 | [database-indexes.md](.agents/rules/database-indexes.md) | `internal/ent/schema/**/*.go` | 数据库索引设计、命名、跨方言兼容与迁移验证规则 |
 | [biz-services.md](.agents/rules/biz-services.md) | `internal/server/biz/**/*.go` | Biz service、上下文取值、事务与级联删除规则 |
 | [cache-compat.md](.agents/rules/cache-compat.md) | `**/*.go` | 缓存结构兼容性与升级安全规则 |
+| [logging.md](.agents/rules/logging.md) | `**/*.go` | 日志入口、级别、错误记录、字段命名与敏感信息规则 |
 | [frontend-general.md](.agents/rules/frontend-general.md) | `frontend/**/*.ts`, `frontend/**/*.tsx` | 前端通用开发约定、GraphQL 数据约束、页面作用域 |
 | [frontend-i18n.md](.agents/rules/frontend-i18n.md) | `frontend/src/**/*.ts`, `frontend/src/**/*.tsx`, `frontend/src/locales/*.json` | i18n 与货币格式规则 |
 | [frontend-ui.md](.agents/rules/frontend-ui.md) | `frontend/**/*.tsx` | 前端 UI 组件使用规则 |
