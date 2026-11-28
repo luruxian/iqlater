@@ -88,6 +88,7 @@ Use this document for domain orientation only. For exact fields, constraints, in
 
 ## Related Resources
 
+- [Database Tables](database-tables.md): columns of every table, grouped by data domain
 - [Transformation Flow Architecture](transformation-flow.md)
 - [Fine-grained Permission Guide](../guides/permissions.md)
 - [Tracing Guide](../guides/tracing.md)

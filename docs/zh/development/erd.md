@@ -88,6 +88,7 @@ API Key 或管理员请求
 
 ## 相关资源
 
+- [数据库表结构](database-tables.md)：按数据域列出全部表的字段
 - [转换流程架构](transformation-flow.md)
 - [细粒度权限指南](../guides/permissions.md)
 - [追踪指南](../guides/tracing.md)
