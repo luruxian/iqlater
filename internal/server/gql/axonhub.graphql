@@ -885,6 +885,14 @@ extend type Trace {
   usageMetadata: UsageMetadata @goField(forceResolver: true)
 }
 
+extend type Request {
+  """
+  Member the request is attributed to: the Playground user, or the API key creator.
+  Null when unattributed, the user was deleted, or the caller cannot read the user.
+  """
+  user: User @goField(forceResolver: true)
+}
+
 extend type Thread {
   firstUserQuery: String @goField(forceResolver: true)
   usageMetadata: UsageMetadata @goField(forceResolver: true)

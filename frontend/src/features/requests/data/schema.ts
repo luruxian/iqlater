@@ -59,6 +59,7 @@ export const requestSchema = z.object({
   apiKey: apiKeySchema.partial().nullable().optional(),
   // channelID: z.string().optional().nullable(),
   channel: channelSchema.partial().nullable().optional(),
+  user: z.object({ firstName: z.string().optional(), lastName: z.string().optional() }).nullable().optional(),
   source: requestSourceSchema,
   modelID: z.string(),
   reasoningEffort: z.string().nullable().optional(),

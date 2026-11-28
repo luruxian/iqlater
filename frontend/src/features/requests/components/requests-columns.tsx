@@ -774,7 +774,14 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       cell: ({ row }) => {
         const request = row.original;
         if (request.source !== 'api') {
-          return <Badge variant='secondary'>{t(`requests.source.${request.source}`)}</Badge>;
+          const sourceUserName = formatUserName(request.user?.firstName, request.user?.lastName);
+
+          return (
+            <div className='flex min-w-[120px] flex-col items-start gap-0.5'>
+              <Badge variant='secondary'>{t(`requests.source.${request.source}`)}</Badge>
+              {sourceUserName && <span className='text-muted-foreground text-xs'>{sourceUserName}</span>}
+            </div>
+          );
         }
 
         const callerName = formatUserName(request.apiKey?.user?.firstName, request.apiKey?.user?.lastName);

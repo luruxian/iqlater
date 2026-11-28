@@ -35,6 +35,15 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
                 }`
     : '';
 
+  // Playground requests have no API key; the attributed member is the only caller identity.
+  const requestUserFields = permissions.canViewCallerUser
+    ? `
+            user {
+              firstName
+              lastName
+            }`
+    : '';
+
   const executionChannelFields = permissions.canViewChannels
     ? `
                   channel {
@@ -58,7 +67,7 @@ function buildRequestsQuery(permissions: { canViewApiKeys: boolean; canViewChann
           node {
             id
             createdAt
-            updatedAt${apiKeyFields}${requestChannelFields}
+            updatedAt${apiKeyFields}${requestChannelFields}${requestUserFields}
             source
             modelID
             format

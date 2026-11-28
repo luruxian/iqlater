@@ -122,7 +122,7 @@ All detailed rules are in `.agents/rules/`:
 | [logging.md](.agents/rules/logging.md) | `**/*.go` | 日志入口、级别、错误记录、字段命名与敏感信息规则 |
 | [frontend-general.md](.agents/rules/frontend-general.md) | `frontend/**/*.ts`, `frontend/**/*.tsx` | 前端通用开发约定、GraphQL 数据约束、页面作用域 |
 | [frontend-i18n.md](.agents/rules/frontend-i18n.md) | `frontend/src/**/*.ts`, `frontend/src/**/*.tsx`, `frontend/src/locales/*.json` | i18n 与货币格式规则 |
-| [frontend-ui.md](.agents/rules/frontend-ui.md) | `frontend/**/*.tsx` | 前端 UI 组件使用规则 |
+| [frontend-ui.md](.agents/rules/frontend-ui.md) | `frontend/**/*.tsx` | 前端 UI 必须使用 shadcn 官方组件、组件添加与扩展方式、组件使用细节 |
 | [e2e.md](.agents/rules/e2e.md) | `frontend/tests/**/*.ts` | E2E testing rules |
 | [docs.md](.agents/rules/docs.md) | `docs/**/*.md` | Documentation rules |
 | [workflows/add-channel.md](.agents/rules/workflows/add-channel.md) | Manual | Workflow for adding a new channel |

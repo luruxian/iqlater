@@ -1850,6 +1850,7 @@ type ComplexityRoot struct {
 		TraceID                    func(childComplexity int) int
 		UpdatedAt                  func(childComplexity int) int
 		UsageLogs                  func(childComplexity int, after *entgql.Cursor[int], first *int, before *entgql.Cursor[int], last *int, orderBy *ent.UsageLogOrder, where *ent.UsageLogWhereInput) int
+		User                       func(childComplexity int) int
 		UserAgent                  func(childComplexity int) int
 	}
 
@@ -2854,6 +2855,8 @@ type RequestResolver interface {
 	ChannelID(ctx context.Context, obj *ent.Request) (*objects.GUID, error)
 
 	Channel(ctx context.Context, obj *ent.Request) (*ent.Channel, error)
+
+	User(ctx context.Context, obj *ent.Request) (*ent.User, error)
 }
 type RequestExecutionResolver interface {
 	ID(ctx context.Context, obj *ent.RequestExecution) (*objects.GUID, error)
@@ -11100,6 +11103,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Request.UsageLogs(childComplexity, args["after"].(*entgql.Cursor[int]), args["first"].(*int), args["before"].(*entgql.Cursor[int]), args["last"].(*int), args["orderBy"].(*ent.UsageLogOrder), args["where"].(*ent.UsageLogWhereInput)), true
+	case "Request.user":
+		if e.complexity.Request.User == nil {
+			break
+		}
+
+		return e.complexity.Request.User(childComplexity), true
 	case "Request.userAgent":
 		if e.complexity.Request.UserAgent == nil {
 			break
@@ -59683,6 +59692,73 @@ func (ec *executionContext) fieldContext_Request_usageLogs(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Request_user(ctx context.Context, field graphql.CollectedField, obj *ent.Request) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Request_user,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Request().User(ctx, obj)
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋloopljᚋaxonhubᚋinternalᚋentᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Request_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Request",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_User_updatedAt(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "status":
+				return ec.fieldContext_User_status(ctx, field)
+			case "preferLanguage":
+				return ec.fieldContext_User_preferLanguage(ctx, field)
+			case "firstName":
+				return ec.fieldContext_User_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_User_lastName(ctx, field)
+			case "avatar":
+				return ec.fieldContext_User_avatar(ctx, field)
+			case "isOwner":
+				return ec.fieldContext_User_isOwner(ctx, field)
+			case "scopes":
+				return ec.fieldContext_User_scopes(ctx, field)
+			case "projects":
+				return ec.fieldContext_User_projects(ctx, field)
+			case "apiKeys":
+				return ec.fieldContext_User_apiKeys(ctx, field)
+			case "roles":
+				return ec.fieldContext_User_roles(ctx, field)
+			case "channelOverrideTemplates":
+				return ec.fieldContext_User_channelOverrideTemplates(ctx, field)
+			case "oidcIdentities":
+				return ec.fieldContext_User_oidcIdentities(ctx, field)
+			case "projectUsers":
+				return ec.fieldContext_User_projectUsers(ctx, field)
+			case "userRoles":
+				return ec.fieldContext_User_userRoles(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RequestConnection_edges(ctx context.Context, field graphql.CollectedField, obj *ent.RequestConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -59882,6 +59958,8 @@ func (ec *executionContext) fieldContext_RequestEdge_node(_ context.Context, fie
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "user":
+				return ec.fieldContext_Request_user(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -60826,6 +60904,8 @@ func (ec *executionContext) fieldContext_RequestExecution_request(_ context.Cont
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "user":
+				return ec.fieldContext_Request_user(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -69379,6 +69459,8 @@ func (ec *executionContext) fieldContext_UsageLog_request(_ context.Context, fie
 				return ec.fieldContext_Request_channel(ctx, field)
 			case "usageLogs":
 				return ec.fieldContext_Request_usageLogs(ctx, field)
+			case "user":
+				return ec.fieldContext_Request_user(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Request", field.Name)
 		},
@@ -118237,6 +118319,39 @@ func (ec *executionContext) _Request(ctx context.Context, sel ast.SelectionSet, 
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "user":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Request_user(ctx, field, obj)
 				return res
 			}
 

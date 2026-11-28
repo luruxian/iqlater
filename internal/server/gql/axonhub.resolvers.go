@@ -1017,6 +1017,15 @@ func (r *queryResolver) APIKeyQuotaUsages(ctx context.Context, apiKeyID objects.
 	return result, nil
 }
 
+// User is the resolver for the user field.
+func (r *requestResolver) User(ctx context.Context, obj *ent.Request) (*ent.User, error) {
+	if obj.UserID == nil {
+		return nil, nil
+	}
+
+	return getNilableUser(ctx, r.client, *obj.UserID)
+}
+
 // ID is the resolver for the id field.
 func (r *segmentResolver) ID(ctx context.Context, obj *biz.Segment) (*objects.GUID, error) {
 	return &objects.GUID{Type: ent.TypeRequest, ID: obj.ID}, nil
