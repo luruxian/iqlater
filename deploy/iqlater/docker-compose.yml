@@ -30,6 +30,8 @@ services:
       AXONHUB_SERVER_TRUSTED_PROXIES: '["172.28.0.0/24"]'
       AXONHUB_DB_DIALECT: postgres
       AXONHUB_DB_DSN: postgres://iqlater:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/iqlater?sslmode=disable
+      # 表结构由 migrate 服务（Atlas）管理，axonhub 不再自动建表
+      AXONHUB_DB_MIGRATION_MODE: versioned
       TZ: Asia/Shanghai
     user: "65532:65532"
     init: true
@@ -41,6 +43,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       magpie:
         condition: service_healthy
     healthcheck:
@@ -55,6 +59,23 @@ services:
       driver: json-file
       options: {max-size: 10m, max-file: "3"}
     networks: [edge, backend]
+
+  migrate:
+    image: ${IQLATER_MIGRATE_IMAGE:-ghcr.io/luruxian/iqlater-migrate}:${IQLATER_VERSION:?set IQLATER_VERSION in .env}
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://iqlater:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/iqlater?sslmode=disable&search_path=public
+    # atlas 二进制权限为 0111，root 在 cap_drop ALL 后无法执行，须用非 root 用户
+    user: "65532:65532"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
 
   magpie:
     image: ghcr.io/yetone/magpie:stable
